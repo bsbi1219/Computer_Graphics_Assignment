@@ -1,0 +1,8 @@
+﻿  main.cpp
+C:\2DGP SUBEEN\Computer_Graphics_Assignment\OpenGL_2\OpenGL_2\main.cpp(30,72): warning C4305: '=': 'double'에서 'float'(으)로 잘립니다.
+C:\2DGP SUBEEN\Computer_Graphics_Assignment\OpenGL_2\OpenGL_2\main.cpp(33,72): warning C4305: '=': 'double'에서 'float'(으)로 잘립니다.
+C:\2DGP SUBEEN\Computer_Graphics_Assignment\OpenGL_2\OpenGL_2\main.cpp(36,72): warning C4305: '=': 'double'에서 'float'(으)로 잘립니다.
+C:\2DGP SUBEEN\Computer_Graphics_Assignment\OpenGL_2\OpenGL_2\main.cpp(39,72): warning C4305: '=': 'double'에서 'float'(으)로 잘립니다.
+C:\2DGP SUBEEN\Computer_Graphics_Assignment\OpenGL_2\OpenGL_2\main.cpp(58,6): warning C4326: 'main'의 반환 형식이 'int'이어야 하는데 'void'입니다.
+C:\2DGP SUBEEN\Computer_Graphics_Assignment\OpenGL_2\OpenGL_2\main.cpp(103,2): warning C4060: switch문에 'case' 또는 'default' 레이블이 없습니다.
+  OpenGL_2.vcxproj -> C:\2DGP SUBEEN\Computer_Graphics_Assignment\OpenGL_2\x64\Debug\OpenGL_2.exe
