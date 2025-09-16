@@ -50,42 +50,37 @@ void draw_Rectangle()
 	}
 }
 
-void check_Mouse_Inout(int button, int x, int y)
+void check_Mouse_Inout(int button, float x, float y)
 {
 	if (button == GLUT_LEFT_BUTTON)
 	{
 		for (int i = 0; i < 4; ++i)
 		{
-			if (x > rect[i].x1 && x < rect[i].x2 && y > rect[i].y1 && y < rect[i].y2)
+			if (x > rect[i].x1 && x < rect[i].x2 && y < rect[i].y1 && y > rect[i].y2)
 			{
 				rect[i].r = ran(rd);
 				rect[i].g = ran(rd);
 				rect[i].b = ran(rd);
-				break;
-			}
-			else
-			{
-				r = ran(rd);
-				g = ran(rd);
-				b = ran(rd);
-				break;
+				return;
 			}
 		}
-
+		r = ran(rd);
+		g = ran(rd);
+		b = ran(rd);
 	}
-	else if (button == GLUT_RIGHT_BUTTON)
+	else
 	{
 		for (int i = 0; i < 4; ++i)
 		{
-			if (x > rect[i].x1 && x < rect[i].x2 && y > rect[i].y1 && y < rect[i].y2)
+			if (x > rect[i].x1 + rect[i].size && x < rect[i].x2 - rect[i].size && y < rect[i].y1 - rect[i].size && y > rect[i].y2 + rect[i].size)
 			{
 				if (rect[i].size < 0.2f)
 					rect[i].size += 0.01f;
 				break;
 			}
-			else
+			else if (x > rect[i].x1 && x < rect[i].x2 && y < rect[i].y1 && y > rect[i].y2)
 			{
-				if (rect[i].size > 0)
+				if (rect[i].size > 0.01)
 					rect[i].size -= 0.01f;
 				break;
 			}
@@ -149,14 +144,9 @@ void Mouse(int button, int state, int x, int y)
 {
 	float ox = (float)x / (width * 0.5f) - 1.0f;
 	float oy = 1.0f - (float)y / (height * 0.5f);
-	if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN)
+	if ((button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) || (button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN))
 	{
 		check_Mouse_Inout(button, ox, oy);
 	}
-	if (button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN)
-	{
-		check_Mouse_Inout(button, ox, oy);
-	}
-	draw_Rectangle();
 	glutPostRedisplay();
 }
