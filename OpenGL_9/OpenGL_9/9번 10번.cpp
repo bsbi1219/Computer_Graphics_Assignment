@@ -22,6 +22,7 @@ char* filetobuf(const char* file); //--- 텍스트 파일을 읽어서 문자열로 반환하는 
 random_device rd;
 uniform_real_distribution<float> ranColor(0.0f, 1.0f);
 uniform_real_distribution<float> ran_Size(0.0f, 0.2f);
+uniform_int_distribution<int> ran_dic(0, 1); // 0: left, 1: right
 
 GLint width = 500, height = 500;
 GLuint shaderProgramID; //--- 세이더 프로그램 이름
@@ -246,19 +247,19 @@ void moveShape(unsigned char key)
 {
 	if (key == '1')
 	{
-
+		glutTimerFunc(10, TimerFunction, 1);
 	}
 	else if (key == '2')
 	{
-
+		glutTimerFunc(10, TimerFunction, 2);
 	}
 	else if (key == '3')
 	{
-
+		glutTimerFunc(10, TimerFunction, 3);
 	}
 	else if (key == '4')
 	{
-
+		glutTimerFunc(10, TimerFunction, 4);
 	}
 	else return;
 }
@@ -333,6 +334,21 @@ void Keyboard(unsigned char key, int x, int y)
 		break;
 	}
 	glutPostRedisplay();
+}
+
+void TimerFunction(int value)
+{
+	switch (value)
+	{
+	case 1:
+		break;
+	case 2:
+		break;
+	case 3:
+		break;
+	case 4:
+		break;
+	}
 }
 
 int findLoc(float ox, float oy)
