@@ -22,7 +22,7 @@ char* filetobuf(const char* file); //--- 텍스트 파일을 읽어서 문자열로 반환하는 
 random_device rd;
 uniform_real_distribution<float> ranColor(0.0f, 1.0f);
 uniform_real_distribution<float> ran_Size(0.0f, 0.2f);
-uniform_int_distribution<int> ran_dic(0, 1); // 0: left, 1: right
+uniform_int_distribution<int> ran_dic(0, 3); // 0: left, 1: right 2: up 3: down
 
 GLint width = 500, height = 500;
 GLuint shaderProgramID; //--- 세이더 프로그램 이름
@@ -35,6 +35,8 @@ GLuint VBO;
 int triCnt[4];
 bool line = false;
 bool start = true;
+
+int moving = 0;
 
 struct TRIANGLE
 {
@@ -306,6 +308,26 @@ char* filetobuf(const char* file)
 	return buf; // Return the buffer
 }
 
+void Bounce_tri()
+{
+
+}
+
+void Zigzag_tri()
+{
+
+}
+
+void Rect_Spiral()
+{
+
+}
+
+void Cir_Spiral()
+{
+
+}
+
 void Keyboard(unsigned char key, int x, int y)
 {
 	switch (key)
@@ -341,12 +363,16 @@ void TimerFunction(int value)
 	switch (value)
 	{
 	case 1:
+		moving = 1;
 		break;
 	case 2:
+		moving = 2;
 		break;
 	case 3:
+		moving = 3;
 		break;
 	case 4:
+		moving = 4;
 		break;
 	}
 }
