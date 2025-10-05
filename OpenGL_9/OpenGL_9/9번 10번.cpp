@@ -16,13 +16,15 @@ GLuint make_shaderProgram();
 GLvoid drawScene();
 GLvoid Reshape(int w, int h);
 void Keyboard(unsigned char key, int x, int y);
-void Mouse(int button, int state, int x, int y);
+void Mouse(int button, int state, int x, int y); 
+void TimerFunction(int value);
 char* filetobuf(const char* file); //--- 텍스트 파일을 읽어서 문자열로 반환하는 함수
 
 random_device rd;
 uniform_real_distribution<float> ranColor(0.0f, 1.0f);
 uniform_real_distribution<float> ran_Size(0.0f, 0.2f);
-uniform_int_distribution<int> ran_dic(0, 3); // 0: left, 1: right 2: up 3: down
+uniform_int_distribution<int> ran_lr(0, 1); // 0: left, 1: right
+uniform_int_distribution<int> ran_ud(2, 3); // 2: up 3: down
 
 GLint width = 500, height = 500;
 GLuint shaderProgramID; //--- 세이더 프로그램 이름
@@ -44,6 +46,7 @@ struct TRIANGLE
 	float r, g, b;
 	float loc;
 	int vCnt;
+	float dir_lr, dir_ud;
 	GLuint VAO, VBO;
 }tri[16];
 
@@ -56,6 +59,8 @@ void reset()
 	for (int i = 0; i < 16; ++i)
 	{
 		tri[i].loc = 0;
+		tri[i].dir_lr = ran_lr(rd);
+		tri[i].dir_ud = ran_ud(rd);
 	}
 }
 
@@ -247,19 +252,19 @@ void createShape(float x, float y, int loc)
 
 void moveShape(unsigned char key)
 {
-	if (key == '1')
+	if (key == '1' && moving != 1)
 	{
 		glutTimerFunc(10, TimerFunction, 1);
 	}
-	else if (key == '2')
+	else if (key == '2' && moving != 2)
 	{
 		glutTimerFunc(10, TimerFunction, 2);
 	}
-	else if (key == '3')
+	else if (key == '3' && moving != 3)
 	{
 		glutTimerFunc(10, TimerFunction, 3);
 	}
-	else if (key == '4')
+	else if (key == '4' && moving != 4)
 	{
 		glutTimerFunc(10, TimerFunction, 4);
 	}
@@ -308,9 +313,75 @@ char* filetobuf(const char* file)
 	return buf; // Return the buffer
 }
 
-void Bounce_tri()
+void Bounce_tri(float speed)
 {
+	for (int i = 0; i < 16; ++i)
+	{
+		if (tri[i].loc != -1)
+		{
+			if (tri[i].vy[0] > 1.0f) tri[i].dir_ud = 3;
+			if (tri[i].vy[1] < -1.0f || tri[i].vy[2] < -1.0f) tri[i].dir_ud = 2;
+			if (tri[i].vx[1] < -1.0f) tri[i].dir_lr = 1;
+			if (tri[i].vx[2] > 1.0f) tri[i].dir_lr = 0;
 
+			if (tri[i].dir_lr == 0)
+			{
+				for (int j = 0; j < 3; ++j)
+				{
+					tri[i].vx[j] -= speed;
+				}
+			}
+			else
+			{
+				for (int j = 0; j < 3; ++j)
+				{
+					tri[i].vx[j] += speed;
+				}
+			}
+
+			if (tri[i].dir_ud == 2)
+			{
+				for (int j = 0; j < 3; ++j)
+				{
+					tri[i].vy[j] += speed;
+				}
+			}
+			else
+			{
+				for (int j = 0; j < 3; ++j)
+				{
+					tri[i].vy[j] -= speed;
+				}
+			}
+		}
+	}
+
+	GLuint VAO, VBO, EBO;
+	glGenVertexArrays(1, &VAO);
+	glGenBuffers(1, &VBO);
+
+	glBindVertexArray(VAO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+	for (int i = 0; i < 16; ++i)
+	{
+		if (tri[i].loc != -1)
+		{
+			float vertices[] =
+			{
+				tri[i].vx[0], tri[i].vy[0], 0.0f,
+				tri[i].vx[1], tri[i].vy[1], 0.0f,
+				tri[i].vx[2], tri[i].vy[2], 0.0f
+			};
+			glBufferData(GL_ARRAY_BUFFER, sizeof(float) * tri[i].vCnt * 3, vertices, GL_STATIC_DRAW);
+			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+			glEnableVertexAttribArray(0);
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
+			glBindVertexArray(0);
+			tri[i].VAO = VAO;
+			tri[i].VBO = VBO;
+		}
+	}
 }
 
 void Zigzag_tri()
@@ -360,10 +431,15 @@ void Keyboard(unsigned char key, int x, int y)
 
 void TimerFunction(int value)
 {
+	float speed = 0.01f;
 	switch (value)
 	{
 	case 1:
-		moving = 1;
+		while(moving == 1)
+		{
+			moving = 1;
+			Bounce_tri(speed);
+		}
 		break;
 	case 2:
 		moving = 2;
@@ -375,6 +451,7 @@ void TimerFunction(int value)
 		moving = 4;
 		break;
 	}
+	glutPostRedisplay();
 }
 
 int findLoc(float ox, float oy)
