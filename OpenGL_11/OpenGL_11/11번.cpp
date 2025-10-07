@@ -20,6 +20,7 @@ void TimerFunction(int value);
 char* filetobuf(const char* file);
 
 random_device rd;
+uniform_real_distribution<float> color(0.0f, 1.0f);
 
 GLint width = 500, height = 500;
 GLuint shaderProgramID;
@@ -53,14 +54,15 @@ void main(int argc, char** argv)
 GLvoid drawScene()
 {
 	GLfloat rColor, gColor, bColor;
-	rColor = gColor = bColor = 0.0f;
+	rColor = color(rd);
+	gColor = color(rd);
+	bColor = color(rd);
 	glClearColor(rColor, gColor, bColor, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 	glUseProgram(shaderProgramID);
 	glPointSize(5.0);
 	GLint loc = glGetUniformLocation(shaderProgramID, "u_color");
 	glUniform3f(loc, 1.0f, 1.0f, 1.0f);
-	glDrawArrays(GL_LINES, 0, 4);
 	glBindVertexArray(VAO);
 
 	GLint loc = glGetUniformLocation(shaderProgramID, "u_color");
@@ -179,6 +181,46 @@ char* filetobuf(const char* file)
 	fclose(fptr); // Close the file
 	buf[length] = 0; // Null terminator
 	return buf; // Return the buffer
+}
+
+void Cir_Spiral()
+{
+	r[i] += tri[i].speed;
+	rad[i] += tri[i].speed;
+	if (rad[i] > 2 * PI) rad[i] -= 2 * PI;
+
+	float cx = r[i] * cos(rad[i]) * 0.001;
+	float cy = r[i] * sin(rad[i]) * 0.001;
+
+	for (int j = 0; j < 3; ++j)
+	{
+		tri[i].vx[j] += cx;
+		tri[i].vy[j] += cy;
+	}
+
+	if (tri[i].VAO == 0 || tri[i].VBO == 0)
+	{
+		glGenVertexArrays(1, &tri[i].VAO);
+		glGenBuffers(1, &tri[i].VBO);
+		glBindVertexArray(tri[i].VAO);
+		glBindBuffer(GL_ARRAY_BUFFER, tri[i].VBO);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 9, NULL, GL_DYNAMIC_DRAW); // �Ҵ縸
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+		glEnableVertexAttribArray(0);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glBindVertexArray(0);
+	}
+
+	float vertices[] =
+	{
+		tri[i].vx[0], tri[i].vy[0], 0.0f,
+		tri[i].vx[1], tri[i].vy[1], 0.0f,
+		tri[i].vx[2], tri[i].vy[2], 0.0f
+	};
+
+	glBindBuffer(GL_ARRAY_BUFFER, tri[i].VBO);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 void Keyboard(unsigned char key, int x, int y)
