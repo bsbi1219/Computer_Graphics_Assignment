@@ -29,6 +29,7 @@ GLuint fragmentShader;
 GLuint VAO, VBO, EBO;
 
 int spiral_num = 1;
+bool line = false;
 
 void main(int argc, char** argv)
 {
@@ -192,8 +193,10 @@ void Keyboard(unsigned char key, int x, int y)
 	switch (key)
 	{
 	case 'p':
+		line = false;
 		break;
 	case 'l':
+		line = true;
 		break;
 	case '1':
 		spiral_num = 1;
