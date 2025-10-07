@@ -6,6 +6,7 @@
 #include <GL/freeglut_ext.h>
 #include <iostream>
 #include <random>
+#define PI 3.14
 
 using namespace std;
 
@@ -21,8 +22,10 @@ char* filetobuf(const char* file);
 
 random_device rd;
 uniform_real_distribution<float> color(0.0f, 1.0f);
+uniform_real_distribution<float> pos(-1.0f, 1.0f);
+uniform_int_distribution<int> ran_dic(0, 1);
 
-GLint width = 500, height = 500;
+GLint width = 1200, height = 1200;
 GLuint shaderProgramID;
 GLuint vertexShader;
 GLuint fragmentShader;
@@ -31,6 +34,37 @@ GLuint VAO, VBO, EBO;
 
 int spiral_num = 1;
 bool line = false;
+
+float startX = 0.0f, startY = 0.0f;
+bool moveStart = false;
+float r;
+float rad = 0.5f;
+
+GLfloat colorR;
+GLfloat colorG;
+GLfloat colorB;
+
+struct Spiral {
+	float startX, startY;
+	float r, rad;
+	int dic;
+	GLuint VAO, VBO;
+	bool active;
+	bool outspiral = true;
+	vector<float> points;
+	float endX, endY;
+	float newX, newY;
+};
+
+vector<Spiral> spirals;
+
+void reset()
+{
+	spirals.clear();
+	colorR = 0.0f;
+	colorG = 0.0f;
+	colorB = 0.0f;
+}
 
 void main(int argc, char** argv)
 {
@@ -53,25 +87,20 @@ void main(int argc, char** argv)
 
 GLvoid drawScene()
 {
-	GLfloat rColor, gColor, bColor;
-	rColor = color(rd);
-	gColor = color(rd);
-	bColor = color(rd);
-	glClearColor(rColor, gColor, bColor, 1.0f);
+	glClearColor(colorR, colorG, colorB, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 	glUseProgram(shaderProgramID);
-	glPointSize(5.0);
+	glPointSize(2.0);
 	GLint loc = glGetUniformLocation(shaderProgramID, "u_color");
 	glUniform3f(loc, 1.0f, 1.0f, 1.0f);
-	glBindVertexArray(VAO);
-
-	GLint loc = glGetUniformLocation(shaderProgramID, "u_color");
-	glUniform3f(loc, 1.0f, 1.0f, 1.0f);
-
-	if (!line)
-		glDrawArrays(GL_DOT, 0, tri[i].vCnt);
-	else
-		glDrawArrays(GL_LINE_LOOP, 0, tri[i].vCnt);
+	for (auto& s : spirals)
+	{
+		glBindVertexArray(s.VAO);
+		if (line)
+			glDrawArrays(GL_LINE_STRIP, 0, s.points.size() / 2);
+		else
+			glDrawArrays(GL_POINTS, 0, s.points.size() / 2);
+	}
 	glBindVertexArray(0);
 	glutSwapBuffers();
 }
@@ -117,33 +146,6 @@ void make_fragmentShaders()
 	}
 }
 
-void createShape(float x, float y, int loc)
-{
-	float vertices[9];
-
-	float temp[] =
-	{
-		x, y + size_y, 0.0f,
-		x - size_x, y - size_y, 0.0f,
-		x + size_x, y - size_y, 0.0f
-	};
-	memcpy(vertices, temp, sizeof(temp));
-	int vCnt = 3;
-
-	glGenVertexArrays(1, &VAO);
-	glGenBuffers(1, &VBO);
-
-	glBindVertexArray(VAO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vCnt * 3, vertices, GL_STATIC_DRAW);
-
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-}
-
 GLuint make_shaderProgram()
 {
 	GLint result;
@@ -183,46 +185,6 @@ char* filetobuf(const char* file)
 	return buf; // Return the buffer
 }
 
-void Cir_Spiral()
-{
-	r[i] += tri[i].speed;
-	rad[i] += tri[i].speed;
-	if (rad[i] > 2 * PI) rad[i] -= 2 * PI;
-
-	float cx = r[i] * cos(rad[i]) * 0.001;
-	float cy = r[i] * sin(rad[i]) * 0.001;
-
-	for (int j = 0; j < 3; ++j)
-	{
-		tri[i].vx[j] += cx;
-		tri[i].vy[j] += cy;
-	}
-
-	if (tri[i].VAO == 0 || tri[i].VBO == 0)
-	{
-		glGenVertexArrays(1, &tri[i].VAO);
-		glGenBuffers(1, &tri[i].VBO);
-		glBindVertexArray(tri[i].VAO);
-		glBindBuffer(GL_ARRAY_BUFFER, tri[i].VBO);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 9, NULL, GL_DYNAMIC_DRAW); // �Ҵ縸
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-		glEnableVertexAttribArray(0);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		glBindVertexArray(0);
-	}
-
-	float vertices[] =
-	{
-		tri[i].vx[0], tri[i].vy[0], 0.0f,
-		tri[i].vx[1], tri[i].vy[1], 0.0f,
-		tri[i].vx[2], tri[i].vy[2], 0.0f
-	};
-
-	glBindBuffer(GL_ARRAY_BUFFER, tri[i].VBO);
-	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-}
-
 void Keyboard(unsigned char key, int x, int y)
 {
 	switch (key)
@@ -249,6 +211,7 @@ void Keyboard(unsigned char key, int x, int y)
 		spiral_num = 5;
 		break;
 	case 'c':
+		reset();
 		break;
 	case 'q':
 		exit(0);
@@ -261,6 +224,79 @@ void TimerFunction(int value)
 	switch (value)
 	{
 	case 1:
+		for (auto& s : spirals)
+		{
+			if (!s.active) continue;
+
+			if (s.outspiral)
+			{
+				if (s.dic == 0) s.rad -= 0.1f;
+				else s.rad += 0.1f;
+
+				s.r += 0.0005f;
+
+				if (s.rad > 2 * PI) s.rad -= 2 * PI;
+				else if (s.rad < 0) s.rad += 2 * PI;
+
+				float x = s.startX + s.r * cos(s.rad);
+				float y = s.startY + s.r * sin(s.rad);
+
+				s.points.push_back(x);
+				s.points.push_back(y);
+
+				s.endX = x;
+				s.endY = y;
+
+				if (s.r >= 0.1f)
+				{
+					s.outspiral = false;
+
+					float vx = s.endX - s.startX;
+					float vy = s.endY - s.startY;
+					float v = sqrt(vx * vx + vy * vy);
+					vx /= v;
+					vy /= v;
+
+					s.newX = s.endX + vx * 0.1f;
+					s.newY = s.endY + vy * 0.1f;
+
+					s.r = 0.1f;
+				}
+			}
+			else
+			{
+				if (s.r <= 0.0f)
+				{
+					continue;
+				}
+				if (s.dic == 0) s.rad += 0.1f;
+				else s.rad -= 0.1f;
+
+				s.r -= 0.0005f;
+
+				if (s.rad > 2 * PI) s.rad -= 2 * PI;
+				else if (s.rad < 0) s.rad += 2 * PI;
+
+				float x = s.newX + s.r * -cos(s.rad);
+				float y = s.newY + s.r * -sin(s.rad);
+
+				s.points.push_back(x);
+				s.points.push_back(y);
+			}
+
+			glBindVertexArray(s.VAO);
+			glBindBuffer(GL_ARRAY_BUFFER, s.VBO);
+
+			glBufferData(GL_ARRAY_BUFFER, s.points.size() * sizeof(float), s.points.data(), GL_DYNAMIC_DRAW);
+
+			glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+			glEnableVertexAttribArray(0);
+
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
+			glBindVertexArray(0);
+		}
+		glutPostRedisplay();
+		glutTimerFunc(16, TimerFunction, 1);
 		break;
 	}
 }
@@ -271,9 +307,39 @@ void Mouse(int button, int state, int x, int y)
 	float oy = 1.0f - (float)y / height * 2.0f;
 	if ((button == GLUT_LEFT_BUTTON && state == GLUT_DOWN))
 	{
-	}
-	if ((button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN))
-	{
+		colorR = color(rd);
+		colorG = color(rd);
+		colorB = color(rd);
+
+		Spiral s;
+		s.startX = ox;
+		s.startY = oy;
+		s.r = 0.0f;
+		s.rad = 0.5f;
+		s.active = true;
+		s.dic = ran_dic(rd);
+
+		glGenVertexArrays(1, &s.VAO);
+		glGenBuffers(1, &s.VBO);
+
+		spirals.push_back(s);
+
+		for (int i = 1; i < spiral_num; ++i)
+		{
+			Spiral r;
+			r.startX = pos(rd);
+			r.startY = pos(rd);
+			r.r = 0;
+			r.rad = 0;
+			r.active = true;
+			r.dic = ran_dic(rd);
+			glGenVertexArrays(1, &r.VAO);
+			glGenBuffers(1, &r.VBO);
+			spirals.push_back(r);
+		}
+
+		if (spirals.size() >  0)
+			glutTimerFunc(16, TimerFunction, 1);
 	}
 	glutPostRedisplay();
 }
