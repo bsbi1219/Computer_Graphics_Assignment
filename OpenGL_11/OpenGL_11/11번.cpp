@@ -28,6 +28,8 @@ GLuint fragmentShader;
 
 GLuint VAO, VBO, EBO;
 
+int spiral_num = 1;
+
 void main(int argc, char** argv)
 {
 	glutInit(&argc, argv);
@@ -189,8 +191,29 @@ void Keyboard(unsigned char key, int x, int y)
 {
 	switch (key)
 	{
-	case 'a':
+	case 'p':
 		break;
+	case 'l':
+		break;
+	case '1':
+		spiral_num = 1;
+		break;
+	case '2':
+		spiral_num = 2;
+		break;
+	case '3':
+		spiral_num = 3;
+		break;
+	case '4':
+		spiral_num = 4;
+		break;
+	case '5':
+		spiral_num = 5;
+		break;
+	case 'c':
+		break;
+	case 'q':
+		exit(0);
 	}
 	glutPostRedisplay();
 }
