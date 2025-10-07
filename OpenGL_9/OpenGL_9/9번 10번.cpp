@@ -250,27 +250,6 @@ void createShape(float x, float y, int loc)
 	triCnt[loc - 1]++;
 }
 
-void moveShape(unsigned char key)
-{
-	if (key == '1' && moving != 1)
-	{
-		glutTimerFunc(10, TimerFunction, 1);
-	}
-	else if (key == '2' && moving != 2)
-	{
-		glutTimerFunc(10, TimerFunction, 2);
-	}
-	else if (key == '3' && moving != 3)
-	{
-		glutTimerFunc(10, TimerFunction, 3);
-	}
-	else if (key == '4' && moving != 4)
-	{
-		glutTimerFunc(10, TimerFunction, 4);
-	}
-	else return;
-}
-
 GLuint make_shaderProgram()
 {
 	GLint result;
@@ -311,6 +290,29 @@ char* filetobuf(const char* file)
 	fclose(fptr); // Close the file
 	buf[length] = 0; // Null terminator
 	return buf; // Return the buffer
+}
+
+void moveShape(unsigned char key)
+{
+	if (key == '1' && moving != 1)
+	{
+		moving = 1;
+		glutTimerFunc(10, TimerFunction, 1);
+	}
+	else if (key == '2' && moving != 2)
+	{
+		glutTimerFunc(10, TimerFunction, 2);
+	}
+	else if (key == '3' && moving != 3)
+	{
+		glutTimerFunc(10, TimerFunction, 3);
+	}
+	else if (key == '4' && moving != 4)
+	{
+		glutTimerFunc(10, TimerFunction, 4);
+	}
+	else if (moving != 0) moving = 0;
+	else return;
 }
 
 void Bounce_tri(float speed)
@@ -354,33 +356,27 @@ void Bounce_tri(float speed)
 				}
 			}
 		}
-	}
 
-	GLuint VAO, VBO, EBO;
-	glGenVertexArrays(1, &VAO);
-	glGenBuffers(1, &VBO);
+		GLuint VAO, VBO, EBO;
+		glGenVertexArrays(1, &VAO);
+		glGenBuffers(1, &VBO);
 
-	glBindVertexArray(VAO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+		glBindVertexArray(VAO);
+		glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
-	for (int i = 0; i < 16; ++i)
-	{
-		if (tri[i].loc != -1)
+		float vertices[] =
 		{
-			float vertices[] =
-			{
-				tri[i].vx[0], tri[i].vy[0], 0.0f,
-				tri[i].vx[1], tri[i].vy[1], 0.0f,
-				tri[i].vx[2], tri[i].vy[2], 0.0f
-			};
-			glBufferData(GL_ARRAY_BUFFER, sizeof(float) * tri[i].vCnt * 3, vertices, GL_STATIC_DRAW);
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-			glEnableVertexAttribArray(0);
-			glBindBuffer(GL_ARRAY_BUFFER, 0);
-			glBindVertexArray(0);
-			tri[i].VAO = VAO;
-			tri[i].VBO = VBO;
-		}
+			tri[i].vx[0], tri[i].vy[0], 0.0f,
+			tri[i].vx[1], tri[i].vy[1], 0.0f,
+			tri[i].vx[2], tri[i].vy[2], 0.0f
+		};
+		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * tri[i].vCnt * 3, vertices, GL_STATIC_DRAW);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+		glEnableVertexAttribArray(0);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glBindVertexArray(0);
+		tri[i].VAO = VAO;
+		tri[i].VBO = VBO;
 	}
 }
 
@@ -435,10 +431,11 @@ void TimerFunction(int value)
 	switch (value)
 	{
 	case 1:
-		while(moving == 1)
+		if (moving == 1)
 		{
-			moving = 1;
 			Bounce_tri(speed);
+			glutPostRedisplay();
+			glutTimerFunc(10, TimerFunction, 1);
 		}
 		break;
 	case 2:
@@ -451,7 +448,6 @@ void TimerFunction(int value)
 		moving = 4;
 		break;
 	}
-	glutPostRedisplay();
 }
 
 int findLoc(float ox, float oy)
