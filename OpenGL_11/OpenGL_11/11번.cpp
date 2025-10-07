@@ -58,25 +58,18 @@ GLvoid drawScene()
 	glClear(GL_COLOR_BUFFER_BIT);
 	glUseProgram(shaderProgramID);
 	glPointSize(5.0);
-	glBindVertexArray(VAO2);
 	GLint loc = glGetUniformLocation(shaderProgramID, "u_color");
 	glUniform3f(loc, 1.0f, 1.0f, 1.0f);
 	glDrawArrays(GL_LINES, 0, 4);
-	for (int i = 0; i < 16; ++i)
-	{
-		if (tri[i].loc != -1)
-		{
-			glBindVertexArray(tri[i].VAO);
+	glBindVertexArray(VAO);
 
-			GLint loc = glGetUniformLocation(shaderProgramID, "u_color");
-			glUniform3f(loc, tri[i].r, tri[i].g, tri[i].b);
+	GLint loc = glGetUniformLocation(shaderProgramID, "u_color");
+	glUniform3f(loc, 1.0f, 1.0f, 1.0f);
 
-			if (!line)
-				glDrawArrays(GL_TRIANGLES, 0, tri[i].vCnt);
-			else
-				glDrawArrays(GL_LINE_LOOP, 0, tri[i].vCnt);
-		}
-	}
+	if (!line)
+		glDrawArrays(GL_DOT, 0, tri[i].vCnt);
+	else
+		glDrawArrays(GL_LINE_LOOP, 0, tri[i].vCnt);
 	glBindVertexArray(0);
 	glutSwapBuffers();
 }
