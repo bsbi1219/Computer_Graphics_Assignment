@@ -7,6 +7,7 @@
 #include <iostream>
 #include <random>
 #include <math.h>
+#define PI 3.14f
 
 using namespace std;
 
@@ -23,6 +24,7 @@ char* filetobuf(const char* file); //--- 텍스트 파일을 읽어서 문자열로 반환하는 
 random_device rd;
 uniform_real_distribution<float> ranColor(0.0f, 1.0f);
 uniform_real_distribution<float> ran_Size(0.0f, 0.2f);
+uniform_real_distribution<float> ran_Speed(0.05f, 0.01f);
 uniform_int_distribution<int> ran_lr(0, 1); // 0: left, 1: right
 uniform_int_distribution<int> ran_ud(2, 3); // 2: up 3: down
 
@@ -31,14 +33,28 @@ GLuint shaderProgramID; //--- 세이더 프로그램 이름
 GLuint vertexShader; //--- 버텍스 세이더 객체
 GLuint fragmentShader; //--- 프래그먼트 세이더 객체
 
-GLuint VAO;
-GLuint VBO;
+GLuint VAO, VBO, EBO, VAO2, VBO2;
 
 int triCnt[4];
 bool line = false;
 bool start = true;
 
 int moving = 0;
+
+int lrud[16] = { 0, }; // 0: left, 1: right, 2: up, 3: down
+
+// rect spiral
+float realMove_lr[16] = { 0 };
+float realMove_ud[16] = { 0 };
+float canMove_lr[16] = { 0 };
+float canMove_ud[16] = { 0 };
+
+// zigzag
+int downCnt[16] = { 0, };
+
+// cir spiral
+float r[16] = { 0, };
+float rad[16] = { 0.5f, };
 
 struct TRIANGLE
 {
@@ -47,6 +63,7 @@ struct TRIANGLE
 	float loc;
 	int vCnt;
 	float dir_lr, dir_ud;
+	float speed;
 	GLuint VAO, VBO;
 }tri[16];
 
@@ -61,6 +78,7 @@ void reset()
 		tri[i].loc = 0;
 		tri[i].dir_lr = ran_lr(rd);
 		tri[i].dir_ud = ran_ud(rd);
+		tri[i].speed = ran_Speed(rd);
 	}
 }
 
@@ -76,11 +94,11 @@ void resetLine()
 			 0.0f, -1.0f, 0.0f
 		};
 		int vCnt = 4;
-		glGenVertexArrays(1, &VAO);
-		glGenBuffers(1, &VBO);
+		glGenVertexArrays(1, &VAO2);
+		glGenBuffers(1, &VBO2);
 
-		glBindVertexArray(VAO);
-		glBindBuffer(GL_ARRAY_BUFFER, VBO);
+		glBindVertexArray(VAO2);
+		glBindBuffer(GL_ARRAY_BUFFER, VBO2);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(vertex), vertex, GL_STATIC_DRAW);
 
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
@@ -122,7 +140,7 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 	glClear(GL_COLOR_BUFFER_BIT);
 	glUseProgram(shaderProgramID);
 	glPointSize(5.0);
-	glBindVertexArray(VAO);
+	glBindVertexArray(VAO2);
 	GLint loc = glGetUniformLocation(shaderProgramID, "u_color");
 	glUniform3f(loc, 1.0f, 1.0f, 1.0f);
 	glDrawArrays(GL_LINES, 0, 4);
@@ -216,7 +234,6 @@ void createShape(float x, float y, int loc)
 	memcpy(vertices, temp, sizeof(temp));
 	int vCnt = 3;
 
-	GLuint VAO, VBO, EBO;
 	glGenVertexArrays(1, &VAO);
 	glGenBuffers(1, &VBO);
 
@@ -307,18 +324,31 @@ void moveShape(unsigned char key)
 	else if (key == '3' && moving != 3)
 	{
 		moving = 3;
+		for (int i = 0; i < 16; ++i)
+		{
+			canMove_lr[i] = 1.5f;
+			canMove_ud[i] = 1.5f;
+			realMove_lr[i] = 0.0f;
+			realMove_ud[i] = 0.0f;
+			lrud[i] = 0;
+		}
 		glutTimerFunc(10, TimerFunction, 3);
 	}
 	else if (key == '4' && moving != 4)
 	{
 		moving = 4;
+		for (int i = 0; i < 16; ++i)
+		{
+			r[i] = 0;
+			rad[i] = 0.5f;
+		}
 		glutTimerFunc(10, TimerFunction, 4);
 	}
 	else if (moving != 0) moving = 0;
 	else return;
 }
 
-void Bounce_tri(float speed)
+void Bounce_tri()
 {
 	for (int i = 0; i < 16; ++i)
 	{
@@ -333,14 +363,14 @@ void Bounce_tri(float speed)
 			{
 				for (int j = 0; j < 3; ++j)
 				{
-					tri[i].vx[j] -= speed;
+					tri[i].vx[j] -= tri[i].speed;
 				}
 			}
 			else
 			{
 				for (int j = 0; j < 3; ++j)
 				{
-					tri[i].vx[j] += speed;
+					tri[i].vx[j] += tri[i].speed;
 				}
 			}
 
@@ -348,24 +378,30 @@ void Bounce_tri(float speed)
 			{
 				for (int j = 0; j < 3; ++j)
 				{
-					tri[i].vy[j] += speed;
+					tri[i].vy[j] += tri[i].speed;
 				}
 			}
 			else
 			{
 				for (int j = 0; j < 3; ++j)
 				{
-					tri[i].vy[j] -= speed;
+					tri[i].vy[j] -= tri[i].speed;
 				}
 			}
 		}
 
-		GLuint VAO, VBO, EBO;
-		glGenVertexArrays(1, &VAO);
-		glGenBuffers(1, &VBO);
-
-		glBindVertexArray(VAO);
-		glBindBuffer(GL_ARRAY_BUFFER, VBO);
+		if (tri[i].VAO == 0 || tri[i].VBO == 0)
+		{
+			glGenVertexArrays(1, &tri[i].VAO);
+			glGenBuffers(1, &tri[i].VBO);
+			glBindVertexArray(tri[i].VAO);
+			glBindBuffer(GL_ARRAY_BUFFER, tri[i].VBO);
+			glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 9, NULL, GL_DYNAMIC_DRAW); // 할당만
+			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+			glEnableVertexAttribArray(0);
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
+			glBindVertexArray(0);
+		}
 
 		float vertices[] =
 		{
@@ -373,18 +409,14 @@ void Bounce_tri(float speed)
 			tri[i].vx[1], tri[i].vy[1], 0.0f,
 			tri[i].vx[2], tri[i].vy[2], 0.0f
 		};
-		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * tri[i].vCnt * 3, vertices, GL_STATIC_DRAW);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-		glEnableVertexAttribArray(0);
+
+		glBindBuffer(GL_ARRAY_BUFFER, tri[i].VBO);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		glBindVertexArray(0);
-		tri[i].VAO = VAO;
-		tri[i].VBO = VBO;
 	}
 }
 
-int downCnt[16] = { 0,  };
-void Zigzag_tri(float speed)
+void Zigzag_tri()
 {
 	for (int i = 0; i < 16; ++i)
 	{
@@ -406,21 +438,21 @@ void Zigzag_tri(float speed)
 					{
 						for (int j = 0; j < 3; ++j)
 						{
-							tri[i].vy[j] += speed;
+							tri[i].vy[j] += tri[i].speed;
 						}
 					}
 					if (tri[i].dir_ud == 3)
 					{
 						for (int j = 0; j < 3; ++j)
 						{
-							tri[i].vy[j] -= speed;
+							tri[i].vy[j] -= tri[i].speed;
 						}
 					}
 					downCnt[i]++;
 				}
 				for (int j = 0; j < 3; ++j)
 				{
-					tri[i].vx[j] -= speed;
+					tri[i].vx[j] -= tri[i].speed;
 				}
 			}
 			else if (tri[i].dir_lr == 1)
@@ -439,21 +471,21 @@ void Zigzag_tri(float speed)
 					{
 						for (int j = 0; j < 3; ++j)
 						{
-							tri[i].vy[j] += speed;
+							tri[i].vy[j] += tri[i].speed;
 						}
 					}
 					if (tri[i].dir_ud == 3)
 					{
 						for (int j = 0; j < 3; ++j)
 						{
-							tri[i].vy[j] -= speed;
+							tri[i].vy[j] -= tri[i].speed;
 						}
 					}
 					downCnt[i]++;
 				}
 				for (int j = 0; j < 3; ++j)
 				{
-					tri[i].vx[j] += speed;
+					tri[i].vx[j] += tri[i].speed;
 				}
 			}
 
@@ -486,12 +518,138 @@ void Zigzag_tri(float speed)
 
 void Rect_Spiral()
 {
+	for (int i = 0; i < 16; ++i)
+	{
+		if (tri[i].loc == -1) continue;
+		if (canMove_lr[i] < 0.1f || canMove_ud[i] < 0.1f) continue;
 
+		if (tri[i].vx[2] > 0.9f) 
+		{
+			lrud[i] = 2;
+			realMove_lr[i] = 0.0f;
+		}
+		if (tri[i].vx[1] < -0.9f) 
+		{
+			lrud[i] = 3;
+			realMove_lr[i] = 0.0f;
+		}
+		if (tri[i].vy[0] > 0.9f) 
+		{
+			lrud[i] = 0;
+			realMove_ud[i] = 0.0f;
+		}
+		if (tri[i].vy[1] < -0.9f) 
+		{
+			lrud[i] = 1;
+			realMove_ud[i] = 0.0f;
+		}
+
+		if (realMove_lr[i] >= canMove_lr[i])
+		{
+			realMove_lr[i] = 0.0f;
+			if (lrud[i] == 0) lrud[i] = 3;
+			if (lrud[i] == 1) lrud[i] = 2;
+			canMove_lr[i] -= 0.1f;
+		}
+		else if (realMove_ud[i] >= canMove_ud[i])
+		{
+			realMove_ud[i] = 0.0f;
+			if (lrud[i] == 2) lrud[i] = 0;
+			if (lrud[i] == 3) lrud[i] = 1;
+			canMove_ud[i] -= 0.1f;
+		}
+		for (int j = 0; j < 3; ++j)
+		{
+			if (lrud[i] == 0)
+			{
+				tri[i].vx[j] -= tri[i].speed;
+			}
+			else if (lrud[i] == 1)
+			{
+				tri[i].vx[j] += tri[i].speed;
+			}
+			else if (lrud[i] == 2)
+			{
+				tri[i].vy[j] += tri[i].speed;
+			}
+			else if (lrud[i] == 3)
+			{
+				tri[i].vy[j] -= tri[i].speed;
+			}
+		}
+		if (lrud[i] == 0 || lrud[i] == 1) realMove_lr[i] += tri[i].speed;
+		if (lrud[i] == 2 || lrud[i] == 3) realMove_ud[i] += tri[i].speed;
+
+		if (tri[i].VAO == 0 || tri[i].VBO == 0)
+		{
+			glGenVertexArrays(1, &tri[i].VAO);
+			glGenBuffers(1, &tri[i].VBO);
+			glBindVertexArray(tri[i].VAO);
+			glBindBuffer(GL_ARRAY_BUFFER, tri[i].VBO);
+			glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 9, NULL, GL_DYNAMIC_DRAW); // 할당만
+			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+			glEnableVertexAttribArray(0);
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
+			glBindVertexArray(0);
+		}
+
+		float vertices[] =
+		{
+			tri[i].vx[0], tri[i].vy[0], 0.0f,
+			tri[i].vx[1], tri[i].vy[1], 0.0f,
+			tri[i].vx[2], tri[i].vy[2], 0.0f
+		};
+
+		glBindBuffer(GL_ARRAY_BUFFER, tri[i].VBO);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+	}
 }
 
 void Cir_Spiral()
 {
+	for (int i = 0; i < 16; ++i)
+	{
+		if (tri[i].loc == -1) continue;
+		if (tri[i].vx[2] > 1.0f || tri[i].vx[1] < -1.0f || tri[i].vy[0] > 1.0f || tri[i].vy[1] < -1.0f) continue;
 
+		r[i] += tri[i].speed;
+		rad[i] += tri[i].speed;
+		if (rad[i] > 2 * PI) rad[i] -= 2 * PI;
+
+		float cx = r[i] * cos(rad[i]) * 0.001;
+		float cy = r[i] * sin(rad[i]) * 0.001;
+
+		for (int j = 0; j < 3; ++j)
+		{
+			tri[i].vx[j] += cx;
+			tri[i].vy[j] += cy;
+		}
+
+		if (tri[i].VAO == 0 || tri[i].VBO == 0)
+		{
+			glGenVertexArrays(1, &tri[i].VAO);
+			glGenBuffers(1, &tri[i].VBO);
+			glBindVertexArray(tri[i].VAO);
+			glBindBuffer(GL_ARRAY_BUFFER, tri[i].VBO);
+			glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 9, NULL, GL_DYNAMIC_DRAW); // 할당만
+			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+			glEnableVertexAttribArray(0);
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
+			glBindVertexArray(0);
+		}
+
+		float vertices[] =
+		{
+			tri[i].vx[0], tri[i].vy[0], 0.0f,
+			tri[i].vx[1], tri[i].vy[1], 0.0f,
+			tri[i].vx[2], tri[i].vy[2], 0.0f
+		};
+
+		glBindBuffer(GL_ARRAY_BUFFER, tri[i].VBO);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+	}
 }
 
 void Keyboard(unsigned char key, int x, int y)
@@ -532,7 +690,7 @@ void TimerFunction(int value)
 	case 1:
 		if (moving == 1)
 		{
-			Bounce_tri(speed);
+			Bounce_tri();
 			glutPostRedisplay();
 			glutTimerFunc(10, TimerFunction, 1);
 		}
@@ -540,7 +698,7 @@ void TimerFunction(int value)
 	case 2:
 		if (moving == 2)
 		{
-			Zigzag_tri(speed);
+			Zigzag_tri();
 			glutPostRedisplay();
 			glutTimerFunc(10, TimerFunction, 2);
 		}
