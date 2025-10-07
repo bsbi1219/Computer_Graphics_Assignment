@@ -301,14 +301,17 @@ void moveShape(unsigned char key)
 	}
 	else if (key == '2' && moving != 2)
 	{
+		moving = 2;
 		glutTimerFunc(10, TimerFunction, 2);
 	}
 	else if (key == '3' && moving != 3)
 	{
+		moving = 3;
 		glutTimerFunc(10, TimerFunction, 3);
 	}
 	else if (key == '4' && moving != 4)
 	{
+		moving = 4;
 		glutTimerFunc(10, TimerFunction, 4);
 	}
 	else if (moving != 0) moving = 0;
@@ -380,9 +383,105 @@ void Bounce_tri(float speed)
 	}
 }
 
-void Zigzag_tri()
+int downCnt[16] = { 0,  };
+void Zigzag_tri(float speed)
 {
+	for (int i = 0; i < 16; ++i)
+	{
+		if (tri[i].loc != -1)
+		{
+			if (tri[i].dir_lr == 0)
+			{
+				if (downCnt[i] == 5)
+				{
+					downCnt[i] = 0;
+					tri[i].dir_lr = 1;
+				}
+				if (tri[i].vx[1] < -0.9f)
+				{
+					if (tri[i].vy[0] > 0.9f) tri[i].dir_ud = 3;
+					if (tri[i].vy[1] < -0.9f || tri[i].vy[2] < -0.9f) tri[i].dir_ud = 2;
 
+					if (tri[i].dir_ud == 2)
+					{
+						for (int j = 0; j < 3; ++j)
+						{
+							tri[i].vy[j] += speed;
+						}
+					}
+					if (tri[i].dir_ud == 3)
+					{
+						for (int j = 0; j < 3; ++j)
+						{
+							tri[i].vy[j] -= speed;
+						}
+					}
+					downCnt[i]++;
+				}
+				for (int j = 0; j < 3; ++j)
+				{
+					tri[i].vx[j] -= speed;
+				}
+			}
+			else if (tri[i].dir_lr == 1)
+			{
+				if (downCnt[i] == 5)
+				{
+					downCnt[i] = 0;
+					tri[i].dir_lr = 0;
+				}
+				if (tri[i].vx[2] > 0.9f)
+				{
+					if (tri[i].vy[0] > 0.9f) tri[i].dir_ud = 3;
+					if (tri[i].vy[1] < -0.9f || tri[i].vy[2] < -0.9f) tri[i].dir_ud = 2;
+
+					if (tri[i].dir_ud == 2)
+					{
+						for (int j = 0; j < 3; ++j)
+						{
+							tri[i].vy[j] += speed;
+						}
+					}
+					if (tri[i].dir_ud == 3)
+					{
+						for (int j = 0; j < 3; ++j)
+						{
+							tri[i].vy[j] -= speed;
+						}
+					}
+					downCnt[i]++;
+				}
+				for (int j = 0; j < 3; ++j)
+				{
+					tri[i].vx[j] += speed;
+				}
+			}
+
+			if (tri[i].VAO == 0 || tri[i].VBO == 0)
+			{
+				glGenVertexArrays(1, &tri[i].VAO);
+				glGenBuffers(1, &tri[i].VBO);
+				glBindVertexArray(tri[i].VAO);
+				glBindBuffer(GL_ARRAY_BUFFER, tri[i].VBO);
+				glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 9, NULL, GL_DYNAMIC_DRAW); // �Ҵ縸
+				glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+				glEnableVertexAttribArray(0);
+				glBindBuffer(GL_ARRAY_BUFFER, 0);
+				glBindVertexArray(0);
+			}
+
+			float vertices[] = 
+			{
+				tri[i].vx[0], tri[i].vy[0], 0.0f,
+				tri[i].vx[1], tri[i].vy[1], 0.0f,
+				tri[i].vx[2], tri[i].vy[2], 0.0f
+			};
+
+			glBindBuffer(GL_ARRAY_BUFFER, tri[i].VBO);
+			glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
+		}
+	}
 }
 
 void Rect_Spiral()
@@ -439,13 +538,28 @@ void TimerFunction(int value)
 		}
 		break;
 	case 2:
-		moving = 2;
+		if (moving == 2)
+		{
+			Zigzag_tri(speed);
+			glutPostRedisplay();
+			glutTimerFunc(10, TimerFunction, 2);
+		}
 		break;
 	case 3:
-		moving = 3;
+		if (moving == 3)
+		{
+			Rect_Spiral();
+			glutPostRedisplay();
+			glutTimerFunc(10, TimerFunction, 3);
+		}
 		break;
 	case 4:
-		moving = 4;
+		if (moving == 4)
+		{
+			Cir_Spiral();
+			glutPostRedisplay();
+			glutTimerFunc(10, TimerFunction, 4);
+		}
 		break;
 	}
 }
