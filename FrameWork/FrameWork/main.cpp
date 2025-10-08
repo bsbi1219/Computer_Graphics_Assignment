@@ -11,28 +11,69 @@ using namespace std;
 random_device rd;
 // uniform_real_distribution<float> ranColor(0.0f, 1.0f);
 
+GLint width = 900;
+GLint height = 900;
+
+// 도형 별 VAO, VBO관리 + 그리기
+class DRAW
+{
+private:
+	vector<float> vertices;
+	GLuint VAO, VBO;
+
+public:
+	DRAW(const vector<float>& verts) : vertices(verts)
+	{
+		glGenVertexArrays(1, &VAO);
+		glGenBuffers(1, &VBO);
+
+		glBindVertexArray(VAO);
+		glBindBuffer(GL_ARRAY_BUFFER, VBO);
+		glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
+
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+		glEnableVertexAttribArray(0);
+
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glBindVertexArray(0);
+	}
+
+	void Draw()
+	{
+		glBindVertexArray(VAO);
+		glDrawArrays(GL_TRIANGLES, 0, vertices.size() / 3);
+		glBindVertexArray(0);
+	}
+
+	GLuint getVAO() const { return VAO; }
+
+	~DRAW()
+	{
+		glDeleteVertexArrays(1, &VAO);
+		glDeleteBuffers(1, &VBO);
+	}
+};
+
+// 전체 틀 관리
 class FRAMEWORK
 {
 private:
 	GLuint shaderProgramID;
 	GLuint vertexShader, fragmentShader;
-	GLuint VAO, VBO;
-	GLint width = 900;
-	GLint height = 900;
 
 public:
-	FRAMEWORK(int w, int h) : width(w), height(h) {}
-	void Init();
-	void DrawScene();
-	void Reshape(int w, int h);
-
+	FRAMEWORK(int w, int h)
+	{
+		width = w;
+		height = h;
+	}
 	void Init()
 	{
 		make_vertexShaders();
 		make_fragmentShaders();
 		shaderProgramID = make_shaderProgram();
 	}
-	GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
+	GLvoid DrawScene(const DRAW& d) //--- 콜백 함수: 그리기 콜백 함수
 	{
 		GLfloat rColor, gColor, bColor;
 		rColor = gColor = bColor = 0.0f; // 배경색
@@ -40,7 +81,7 @@ public:
 		glClear(GL_COLOR_BUFFER_BIT);
 		glUseProgram(shaderProgramID);
 		glPointSize(5.0); // 굵기
-		glBindVertexArray(VAO); // VAO 바인드
+		glBindVertexArray(d.getVAO()); // VAO 바인드
 		GLint loc = glGetUniformLocation(shaderProgramID, "u_color");
 		glUniform3f(loc, 1.0f, 1.0f, 1.0f); // 색 지정
 		glDrawArrays(GL_TRIANGLES, 0, 3); // 그리기
@@ -53,11 +94,6 @@ public:
 	}
 
 private:
-	void MakeVertexShader();
-	void MakeFragmentShader();
-	GLuint MakeShaderProgram();
-	char* FileToBuf(const char* file);
-
 	void make_vertexShaders()
 	{
 		GLchar* vertexSource;
