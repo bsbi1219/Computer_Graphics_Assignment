@@ -28,6 +28,10 @@ GLuint vertexShader;
 GLuint fragmentShader;
 
 GLuint VAO_L, VBO_L;
+GLuint VAO_LineToTri, VBO_LineToTri;
+GLuint VAO_TriToRect, VBO_TriToRect;
+GLuint VAO_RectToPent, VBO_RectToPent;
+GLuint VAO_PentToLine, VBO_PentToLine;
 
 void makeLine()
 {
@@ -70,7 +74,7 @@ void drawRect() // 사각->오각
 
 }
 
-void drawPat() // 오각->선
+void drawPent() // 오각->선
 {
 
 }
