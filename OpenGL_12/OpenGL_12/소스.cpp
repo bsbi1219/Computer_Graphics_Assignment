@@ -55,6 +55,26 @@ void makeLine()
 	glBindVertexArray(0);
 }
 
+void drawLine() // 선->삼각
+{
+
+}
+
+void drawTri() // 삼각->사각
+{
+
+}
+
+void drawRect() // 사각->오각
+{
+
+}
+
+void drawPat() // 오각->선
+{
+
+}
+
 void main(int argc, char** argv)
 {
 	glutInit(&argc, argv);
@@ -173,6 +193,16 @@ void Keyboard(unsigned char key, int x, int y)
 {
 	switch (key)
 	{
+	case 'l':
+		break;
+	case 't':
+		break;
+	case 'r':
+		break;
+	case 'p':
+		break;
+	case 'a':
+		break;
 	case 'q':
 		exit(0);
 	}
