@@ -29,6 +29,10 @@ GLuint fragmentShader;
 
 GLuint VAO_L, VBO_L;
 
+bool shape3Done = false;
+bool shape1Done = false;
+bool anyAnimating = false;
+
 struct SHAPE
 {
 	GLuint VAO, VBO;
@@ -115,12 +119,12 @@ void drawTri() // »ï°¢->»ç°¢
 		0.2f, 0.2f,
 		0.8f, 0.2f,
 
-		0.2f, 0.8f,
-		0.2f, 0.8f,
+		0.5f, 0.8f,
+		0.5f, 0.8f,
 		0.2f, 0.2f,
 
-		0.2f, 0.8f,
-		0.2f, 0.8f,
+		0.5f, 0.8f,
+		0.5f, 0.8f,
 		0.8f, 0.2f,
 	};
 	memcpy(shape[1].vertices, temp, sizeof(temp));
@@ -266,28 +270,187 @@ GLvoid drawScene()
 	glClear(GL_COLOR_BUFFER_BIT);
 	glUseProgram(shaderProgramID);
 	glPointSize(2.0);
-	GLint loc = glGetUniformLocation(shaderProgramID, "u_color");
 
-	glUniform3f(loc, 0.0f, 0.0f, 0.0f);
-	glBindVertexArray(VAO_L);
-	glDrawArrays(GL_LINES, 0, 4);
+	int centerLoc = glGetUniformLocation(shaderProgramID, "u_center");
+	GLint scaleLoc = glGetUniformLocation(shaderProgramID, "u_scale");
+	GLint loc = glGetUniformLocation(shaderProgramID, "u_color");
+	float centers[4][2] = {
+	{-0.85f,  0.85f},
+	{ 0.85f,  0.85f},
+	{-0.85f, -0.85f},
+	{ 0.85f, -0.85f}
+	};
 
 	for (int i = 0; i < 4; ++i)
 	{
-		glUniform3f(loc, shape[i].r, shape[i].g, shape[i].b);
-		glBindVertexArray(shape[i].VAO);
-		if (i == 0)
+		if (shape[i].animating)
 		{
-			if (shape[i].animating)
-				glDrawArrays(GL_TRIANGLES, 0, 9);
-			else
+			anyAnimating = true;
+			glUniform2f(centerLoc, centers[i][0], centers[i][1]);
+			glUniform1f(scaleLoc, shape[i].animating ? 2.3f : 1.0f);
+
+			glUniform3f(loc, shape[i].r, shape[i].g, shape[i].b);
+			glBindVertexArray(shape[i].VAO);
+			if (i == 0)
+			{
+				if (shape[i].animating || shape1Done)
+					glDrawArrays(GL_TRIANGLES, 0, 9);
+				else
+					glDrawArrays(GL_LINES, 0, 9);
+			}
+			else if (i == 3 && shape3Done)
+			{
 				glDrawArrays(GL_LINES, 0, 9);
+			}
+			else
+				glDrawArrays(GL_TRIANGLES, 0, 9);
+			break;
 		}
-		else
-			glDrawArrays(GL_TRIANGLES, 0, 9);
+	}
+	if (!anyAnimating)
+	{
+		for (int i = 0; i < 4; ++i)
+		{
+			glUniform2f(centerLoc, centers[i][0], centers[i][1]);
+			glUniform1f(scaleLoc, 1.0f);
+
+			glUniform3f(loc, 0.0f, 0.0f, 0.0f);
+			glBindVertexArray(VAO_L);
+			glDrawArrays(GL_LINES, 0, 4);
+
+			glUniform3f(loc, shape[i].r, shape[i].g, shape[i].b);
+			glBindVertexArray(shape[i].VAO);
+			if (i == 0)
+			{
+				if (shape[i].animating || shape1Done)
+					glDrawArrays(GL_TRIANGLES, 0, 9);
+				else
+					glDrawArrays(GL_LINES, 0, 9);
+			}
+			else if (i == 3 && shape3Done)
+			{
+				glDrawArrays(GL_LINES, 0, 9);
+			}
+			else
+				glDrawArrays(GL_TRIANGLES, 0, 9);
+		}
 	}
 	glBindVertexArray(0);
 	glutSwapBuffers();
+}
+
+void shapeAnimation(char o, float t)
+{
+	switch (o)
+	{
+	case 'l':
+		if (shape[0].vertices[4] >= -0.5f)
+		{
+			shape[0].vertices[2] += t;
+			shape[0].vertices[3] -= t;
+			shape[0].vertices[4] -= t;
+		}
+		else
+		{
+			shape[0].animating = false;
+			shape1Done = true;
+			anyAnimating = false;
+		}
+		glBindVertexArray(shape[0].VAO);
+		glBindBuffer(GL_ARRAY_BUFFER, shape[0].VBO);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(shape[0].vertices), shape[0].vertices);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glBindVertexArray(0);
+		break;
+	case 't':
+		if (shape[1].vertices[6] >= 0.2f)
+		{
+			shape[1].vertices[6] -= t;
+			shape[1].vertices[12] += t;
+
+			glBindVertexArray(shape[1].VAO);
+			glBindBuffer(GL_ARRAY_BUFFER, shape[1].VBO);
+			glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(shape[1].vertices), shape[1].vertices);
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
+			glBindVertexArray(0);
+		}
+		else
+		{
+			shape[1].animating = false;
+			anyAnimating = false;
+		}
+		break;
+	case 'r':
+		if (shape[2].vertices[13] >= -0.4f)
+		{
+			shape[2].vertices[1] -= t;
+			shape[2].vertices[7] -= t;
+			shape[2].vertices[9] -= t;
+			shape[2].vertices[13] -= t;
+			shape[2].vertices[17] -= t;
+		}
+		else
+		{
+			shape[2].animating = false;
+			anyAnimating = false;
+		}
+		if (shape[2].vertices[2] <= -0.7f)
+		{
+			shape[2].vertices[2] += t;
+			shape[2].vertices[4] -= t;
+			shape[2].vertices[10] -= t;
+		}
+		glBindVertexArray(shape[2].VAO);
+		glBindBuffer(GL_ARRAY_BUFFER, shape[2].VBO);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(shape[2].vertices), shape[2].vertices);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glBindVertexArray(0);
+		break;
+	case 'p':
+		if (shape[3].vertices[4] < 0.8f)
+		{
+			shape[3].vertices[4] += t;
+			shape[3].vertices[15] -= t;
+		}
+		if (shape[3].vertices[2] < 0.5f)
+		{
+			shape[3].vertices[2] += t;
+			shape[3].vertices[8] -= t;
+			shape[3].vertices[11] += t;
+			shape[3].vertices[17] += t;
+		}
+		if (shape[3].vertices[3] < -0.5f)
+		{
+			shape[3].vertices[3] += t;
+			shape[3].vertices[9] += t;
+			shape[3].vertices[12] -= t;
+			shape[3].vertices[14] += t;
+		}
+		if (shape[3].vertices[1] > -0.8f)
+		{
+			shape[3].vertices[1] -= t;
+			shape[3].vertices[7] -= t;
+		}
+		if (shape[3].vertices[5] < -0.2f)
+		{
+			shape[3].vertices[5] += t;
+			shape[3].vertices[13] -= t;
+		}
+		else
+		{
+			shape[3].animating = false;
+			shape3Done = true;
+			for (int i = 0; i < 18; ++i)
+				cout << shape[3].vertices[i] << endl;
+			anyAnimating = false;
+		}
+		glBindVertexArray(shape[3].VAO);
+		glBindBuffer(GL_ARRAY_BUFFER, shape[3].VBO);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(shape[3].vertices), shape[3].vertices);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glBindVertexArray(0);
+		break;
+	}
 }
 
 GLvoid Reshape(int w, int h)
@@ -375,14 +538,29 @@ void Keyboard(unsigned char key, int x, int y)
 	switch (key)
 	{
 	case 'l':
+		shape[0].animating = true;
+		glutTimerFunc(16, TimerFunction, 1);
 		break;
 	case 't':
+		shape[1].animating = true;
+		glutTimerFunc(16, TimerFunction, 2);
 		break;
 	case 'r':
+		shape[2].animating = true;
+		glutTimerFunc(16, TimerFunction, 3);
 		break;
 	case 'p':
+		shape[3].animating = true;
+		glutTimerFunc(16, TimerFunction, 4);
 		break;
 	case 'a':
+		makeLine();
+		drawLine();
+		drawTri();
+		drawRect();
+		drawPent();
+		shape1Done = false;
+		shape3Done = false;
 		break;
 	case 'q':
 		exit(0);
@@ -395,8 +573,36 @@ void TimerFunction(int value)
 	switch (value)
 	{
 	case 1:
-		glutPostRedisplay();
-		glutTimerFunc(16, TimerFunction, 1);
+		if (shape[0].animating)
+		{
+			shapeAnimation('l', 0.02f);
+			glutPostRedisplay();
+			glutTimerFunc(16, TimerFunction, 1);
+		}
+		break;
+	case 2:
+		if (shape[1].animating)
+		{
+			shapeAnimation('t', 0.02f);
+			glutPostRedisplay();
+			glutTimerFunc(16, TimerFunction, 2);
+		}
+		break;
+	case 3:
+		if (shape[2].animating)
+		{
+			shapeAnimation('r', 0.02f);
+			glutPostRedisplay();
+			glutTimerFunc(16, TimerFunction, 3);
+		}
+		break;
+	case 4:
+		if (shape[3].animating)
+		{
+			shapeAnimation('p', 0.05f);
+			glutPostRedisplay();
+			glutTimerFunc(16, TimerFunction, 4);
+		}
 		break;
 	}
 }
