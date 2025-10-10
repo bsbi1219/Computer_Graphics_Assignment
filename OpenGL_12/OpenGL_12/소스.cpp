@@ -28,10 +28,14 @@ GLuint vertexShader;
 GLuint fragmentShader;
 
 GLuint VAO_L, VBO_L;
-GLuint VAO_LineToTri, VBO_LineToTri;
-GLuint VAO_TriToRect, VBO_TriToRect;
-GLuint VAO_RectToPent, VBO_RectToPent;
-GLuint VAO_PentToLine, VBO_PentToLine;
+
+struct SHAPE
+{
+	GLuint VAO, VBO;
+	GLfloat vertices[18];
+	GLfloat r, g, b;
+	bool animating = false;
+}shape[4];
 
 void makeLine()
 {
@@ -61,22 +65,166 @@ void makeLine()
 
 void drawLine() // 선->삼각
 {
+	GLfloat temp[] =
+	{
+		-0.8f, 0.2f,
+		-0.5f, 0.5f,
+		-0.2f, 0.8f,
 
+		-0.8f, 0.2f,
+		-0.5f, 0.5f,
+		-0.2f, 0.8f,
+
+		-0.8f, 0.2f,
+		-0.5f, 0.5f,
+		-0.2f, 0.8f,
+	};
+
+	memcpy(shape[0].vertices, temp, sizeof(temp));
+
+	GLuint VAO, VBO;
+
+	glGenVertexArrays(1, &VAO);
+	glGenBuffers(1, &VBO);
+
+	glBindVertexArray(VAO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+	glBufferData(GL_ARRAY_BUFFER, sizeof(shape[0].vertices), shape[0].vertices, GL_STATIC_DRAW);;
+
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+
+	shape[0].r = color(rd);
+	shape[0].g = color(rd);
+	shape[0].b = color(rd);
+	shape[0].VAO = VAO;
+	shape[0].VBO = VBO;
+
+	cout << "shape[0].VAO: " << shape[0].VAO << ", VBO: " << shape[0].VBO << endl;
 }
 
 void drawTri() // 삼각->사각
 {
+	GLfloat temp[] =
+	{
+		0.5f, 0.8f,
+		0.2f, 0.2f,
+		0.8f, 0.2f,
 
+		0.2f, 0.8f,
+		0.2f, 0.8f,
+		0.2f, 0.2f,
+
+		0.2f, 0.8f,
+		0.2f, 0.8f,
+		0.8f, 0.2f,
+	};
+	memcpy(shape[1].vertices, temp, sizeof(temp));
+
+	GLuint VAO, VBO;
+
+	glGenVertexArrays(1, &VAO);
+	glGenBuffers(1, &VBO);
+
+	glBindVertexArray(VAO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+	glBufferData(GL_ARRAY_BUFFER, sizeof(shape[1].vertices), shape[1].vertices, GL_STATIC_DRAW);;
+
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+
+	shape[1].r = color(rd);
+	shape[1].g = color(rd);
+	shape[1].b = color(rd);
+	shape[1].VAO = VAO;
+	shape[1].VBO = VBO;
+
+	cout << "shape[1].VAO: " << shape[1].VAO << ", VBO: " << shape[1].VBO << endl;
 }
 
 void drawRect() // 사각->오각
 {
+	GLfloat temp[] =
+	{
+		-0.8f, -0.4f,
+		-0.8f, -0.8f,
+		-0.4f, -0.8f,
 
+		-0.8f, -0.4f,
+		-0.4f, -0.4f,
+		-0.4f, -0.8f,
+
+		-0.8f, -0.4f,
+		-0.5f, -0.4f,
+		-0.4f, -0.4f,
+	};
+	memcpy(shape[2].vertices, temp, sizeof(temp));
+
+	GLuint VAO, VBO;
+
+	glGenVertexArrays(1, &VAO);
+	glGenBuffers(1, &VBO);
+
+	glBindVertexArray(VAO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+	glBufferData(GL_ARRAY_BUFFER, sizeof(shape[2].vertices), shape[2].vertices, GL_STATIC_DRAW);;
+
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+
+	shape[2].r = color(rd);
+	shape[2].g = color(rd);
+	shape[2].b = color(rd);
+	shape[2].VAO = VAO;
+	shape[2].VBO = VBO;
+
+	cout << "shape[2].VAO: " << shape[2].VAO << ", VBO: " << shape[2].VBO << endl;
 }
 
 void drawPent() // 오각->선
 {
+	GLfloat temp[] =
+	{
+		0.2f, -0.
 
+	};
+	memcpy(shape[3].vertices, temp, sizeof(temp));
+
+	GLuint VAO, VBO;
+
+	glGenVertexArrays(1, &VAO);
+	glGenBuffers(1, &VBO);
+
+	glBindVertexArray(VAO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+	glBufferData(GL_ARRAY_BUFFER, sizeof(shape[3].vertices), shape[3].vertices, GL_STATIC_DRAW);;
+
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+
+	shape[3].r = color(rd);
+	shape[3].g = color(rd);
+	shape[3].b = color(rd);
+	shape[3].VAO = VAO;
+	shape[3].VBO = VBO;
+
+	cout << "shape[3].VAO: " << shape[3].VAO << ", VBO: " << shape[3].VBO << endl;
 }
 
 void main(int argc, char** argv)
@@ -89,6 +237,10 @@ void main(int argc, char** argv)
 	glewExperimental = GL_TRUE;
 	glewInit();
 	makeLine();
+	drawLine(); 
+	drawTri();
+	drawRect();
+	drawPent();
 	make_vertexShaders();
 	make_fragmentShaders();
 	shaderProgramID = make_shaderProgram();
@@ -106,9 +258,25 @@ GLvoid drawScene()
 	glUseProgram(shaderProgramID);
 	glPointSize(2.0);
 	GLint loc = glGetUniformLocation(shaderProgramID, "u_color");
+
 	glUniform3f(loc, 0.0f, 0.0f, 0.0f);
 	glBindVertexArray(VAO_L);
 	glDrawArrays(GL_LINES, 0, 4);
+
+	for (int i = 0; i < 4; ++i)
+	{
+		glUniform3f(loc, shape[i].r, shape[i].g, shape[i].b);
+		glBindVertexArray(shape[i].VAO);
+		if (i == 0)
+		{
+			if (shape[i].animating)
+				glDrawArrays(GL_TRIANGLES, 0, 9);
+			else
+				glDrawArrays(GL_LINES, 0, 9);
+		}
+		else
+			glDrawArrays(GL_TRIANGLES, 0, 9);
+	}
 	glBindVertexArray(0);
 	glutSwapBuffers();
 }
