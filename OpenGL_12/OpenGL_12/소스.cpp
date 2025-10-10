@@ -154,17 +154,17 @@ void drawRect() // 사각->오각
 {
 	GLfloat temp[] =
 	{
-		-0.8f, -0.4f,
+		-0.8f, -0.2f,
 		-0.8f, -0.8f,
-		-0.4f, -0.8f,
+		-0.2f, -0.8f,
 
-		-0.8f, -0.4f,
-		-0.4f, -0.4f,
-		-0.4f, -0.8f,
+		-0.8f, -0.2f,
+		-0.2f, -0.2f,
+		-0.2f, -0.8f,
 
-		-0.8f, -0.4f,
-		-0.5f, -0.4f,
-		-0.4f, -0.4f,
+		-0.8f, -0.2f,
+		-0.5f, -0.2f,
+		-0.2f, -0.2f,
 	};
 	memcpy(shape[2].vertices, temp, sizeof(temp));
 
@@ -197,8 +197,17 @@ void drawPent() // 오각->선
 {
 	GLfloat temp[] =
 	{
-		0.2f, -0.
+		0.2f, -0.4f,
+		0.3f, -0.8f,
+		0.7f, -0.8f,
 
+		0.2f, -0.4f,
+		0.7f, -0.8f,
+		0.8f, -0.4f,
+
+		0.5f, -0.2f,
+		0.2f, -0.4f,
+		0.8f, -0.4f,
 	};
 	memcpy(shape[3].vertices, temp, sizeof(temp));
 
