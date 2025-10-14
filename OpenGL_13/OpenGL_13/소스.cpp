@@ -21,10 +21,12 @@ void Motion(int x, int y);
 void TimerFunction(int value);
 char* filetobuf(const char* file);
 
+void makeVertex(int num, int shapeNum);
+
 random_device rd;
 uniform_real_distribution<float> color(0.0f, 1.0f);
 uniform_real_distribution<float> ranPos(-0.9f, 0.9f);
-uniform_int_distribution<int> ranDir(0, 3); // 상하좌우
+uniform_real_distribution<float> ranSpeed(0.01f, 0.03f);
 uniform_int_distribution<int> ranMove(0, 1); // 튕기기, 지그재그
 
 GLint width = 800, height = 800;
@@ -35,6 +37,7 @@ GLuint fragmentShader;
 GLuint VAO, VBO;
 
 int selectedShape = -1;
+bool allMove = true;
 
 struct SHAPE
 {
@@ -47,8 +50,9 @@ struct SHAPE
 	float r, g, b;
 	float vx, vy; // 중심 좌표
 	float size; // 크기
-	int dir; // 상하좌우
+	int dir_ud, dir_lr; // 상하좌우
 	int moveType; // 0: 튕기기, 1: 지그재그
+	float speed;
 }s[15];
 
 void reset()
@@ -63,8 +67,10 @@ void reset()
 		s[i].b = color(rd);
 		s[i].vx = ranPos(rd);
 		s[i].vy = ranPos(rd);
-		s[i].dir = ranDir(rd);
+		s[i].dir_ud = ranMove(rd);
+		s[i].dir_lr = ranMove(rd);
 		s[i].moveType = ranMove(rd);
+		s[i].speed = ranSpeed(rd);
 
 		if (i < 3)
 		{
@@ -136,8 +142,6 @@ void reset()
 			s[i].vertexNum = 2;
 			s[i].size = 0.1f;
 		}
-		s[i].VAO = VAO;
-		s[i].VBO = VBO;
 
 		glGenVertexArrays(1, &s[i].VAO);
 		glGenBuffers(1, &s[i].VBO);
@@ -150,6 +154,7 @@ void reset()
 		glEnableVertexAttribArray(0);
 		glBindVertexArray(0);
 	}
+	glutTimerFunc(16, TimerFunction, 1);
 }
 
 void main(int argc, char** argv)
@@ -187,9 +192,9 @@ GLvoid drawScene()
 			glUniform3f(loc, s[i].r, s[i].g, s[i].b);
 			glBindVertexArray(s[i].VAO);
 			if (s[i].vertexNum != 2)
-				glDrawArrays(GL_TRIANGLES, 0, s[i].vertices.size());
+				glDrawArrays(GL_TRIANGLES, 0, s[i].vertices.size() / 3);
 			else
-				glDrawArrays(GL_LINES, 0, s[i].vertices.size());
+				glDrawArrays(GL_LINES, 0, s[i].vertices.size() / 3);
 		}
 	}
 	glBindVertexArray(0);
@@ -284,13 +289,28 @@ void Keyboard(unsigned char key, int x, int y)
 		reset();
 		break;
 	case 's':
-		for (int i = 0; i < 15; ++i)
+		if (allMove)
 		{
-			if (s[i].isLook && s[i].isPlus)
+			allMove = false;
+			for (int i = 0; i < 15; ++i)
 			{
-				if (s[i].isMove) s[i].isMove = false;
-				else s[i].isMove = true;
+				if (s[i].isLook && s[i].isPlus)
+				{
+					s[i].isMove = false;
+				}
 			}
+		}
+		else
+		{
+			allMove = true;
+			for (int i = 0; i < 15; ++i)
+			{
+				if (s[i].isLook && s[i].isPlus)
+				{
+					s[i].isMove = true;
+				}
+			}
+			glutTimerFunc(16, TimerFunction, 1);
 		}
 		break;
 	case 'q':
@@ -304,63 +324,50 @@ void TimerFunction(int value)
 	switch (value)
 	{
 	case 1:
-		for (int i = 0; i < 15; ++i)
+		if (allMove)
 		{
-			if (s[i].isMove && s[i].isLook && s[i].isPlus)
+			for (int i = 0; i < 15; ++i)
 			{
-				if (s[i].moveType == 0) // 튕기기
+				if (s[i].isMove && s[i].isLook && s[i].isPlus)
 				{
-					switch (s[i].dir)
+					if (s[i].moveType == 0)
 					{
-					case 0: // 상
-						s[i].vy += 0.01f;
-						if (s[i].vy + s[i].size >= 1.0f) s[i].dir = 1;
-						break;
-					case 1: // 하
-						s[i].vy -= 0.01f;
-						if (s[i].vy - s[i].size <= -1.0f) s[i].dir = 0;
-						break;
-					case 2: // 좌
-						s[i].vx -= 0.01f;
-						if (s[i].vx - s[i].size <= -1.0f) s[i].dir = 3;
-						break;
-					case 3: // 우
-						s[i].vx += 0.01f;
-						if (s[i].vx + s[i].size >= 1.0f) s[i].dir = 2;
-						break;
+						float dx = (s[i].dir_lr == 0) ? s[i].speed * -1 : s[i].speed;
+						float dy = (s[i].dir_ud == 0) ? s[i].speed : s[i].speed * -1;
+						s[i].vx += dx;
+						s[i].vy += dy;
+
+						if (s[i].vx + s[i].size >= 1.0f) s[i].dir_lr = 0;
+						if (s[i].vx - s[i].size <= -1.0f) s[i].dir_lr = 1;
+						if (s[i].vy + s[i].size >= 1.0f) s[i].dir_ud = 1;
+						if (s[i].vy - s[i].size <= -1.0f) s[i].dir_ud = 0;
+
+						makeVertex(s[i].vertexNum, i);
 					}
-				}
-				else // 지그재그
-				{
-					switch (s[i].dir)
+					else
 					{
-					case 0: // 상
-						s[i].vy += 0.01f;
-						s[i].vx += 0.005f;
-						if (s[i].vy + s[i].size >= 1.0f) s[i].dir = 1;
-						if (s[i].vx + s[i].size >= 1.0f) s[i].vx = -1.0f + s[i].size;
-						break;
-					case 1: // 하
-						s[i].vy -= 0.01f;
-						s[i].vx -= 0.005f;
-						if (s[i].vy - s[i].size <= -1.0f) s[i].dir = 0;
-						if (s[i].vx - s[i].size <= -1.0f) s[i].vx = 1.0f - s[i].size;
-						break;
-					case 2: // 좌
-						s[i].vx -= 0.01f;
-						s[i].vy += 0.005f;
-						if (s[i].vx - s[i].size <= -1.0f) s[i].dir = 3;
-						if (s[i].vy + s[i].size >= 1.0f) s[i].vy = -1.0f + s[i].size;
-						break;
-					case 3: // 우
-						s[i].vx += 0.01f;
-						s[i].vy -= 0.005f;
-						if (s[i].vx + s[i].size >= 1.0f) s[i].dir = 2;
-						if (s[i].vy - s[i].size <= -1.0f) s[i].vy = 1.0f - s[i].size;
-						break;
+						float dx = (s[i].dir_lr == 0) ? s[i].speed * -1 : s[i].speed;
+						float dy = (s[i].dir_ud == 0) ? s[i].speed : s[i].speed * -1;
+						s[i].vx += dx;
+
+						if (s[i].vx + s[i].size >= 1.0f) 
+						{
+							s[i].dir_lr = 0;
+							s[i].vy += dy;
+						}
+						if (s[i].vx - s[i].size <= -1.0f) 
+						{
+							s[i].dir_lr = 1;
+							s[i].vy += dy;
+						}
+						if (s[i].vy + s[i].size >= 1.0f) s[i].dir_ud = 1;
+						if (s[i].vy - s[i].size <= -1.0f) s[i].dir_ud = 0;
+						makeVertex(s[i].vertexNum, i);
 					}
 				}
 			}
+			glutPostRedisplay();
+			glutTimerFunc(16, TimerFunction, 1);
 		}
 		break;
 	}
@@ -401,7 +408,7 @@ void makeVertex(int num, int shapeNum)
 		s[shapeNum].vertices =
 		{
 			s[shapeNum].vx, s[shapeNum].vy, 0.0f,
-			s[shapeNum].vx + 1.0f, s[shapeNum].vy + 1.0f, 0.0f,
+			s[shapeNum].vx + 0.1f, s[shapeNum].vy + 0.1f, 0.0f,
 		};
 		s[shapeNum].size = 0.1f;
 	}
@@ -506,6 +513,7 @@ void Mouse(int button, int state, int x, int y)
 		{
 			s[onShape].isMove = true;
 			s[onShape].isPlus = true;
+			s[onShape].isLook = true;
 			s[selectedShape].isPlus = true;
 			s[selectedShape].isLook = false;
 
@@ -531,11 +539,7 @@ void Motion(int x, int y)
 		s[selectedShape].vx = ox;
 		s[selectedShape].vy = oy;
 
-		for (size_t i = 0; i < s[selectedShape].vertices.size(); i += 3)
-		{
-			s[selectedShape].vertices[i] += a;
-			s[selectedShape].vertices[i + 1] += b;
-		}
+		makeVertex(s[selectedShape].vertexNum, selectedShape);
 
 		glBindVertexArray(s[selectedShape].VAO);
 		glBindBuffer(GL_ARRAY_BUFFER, s[selectedShape].VBO);
