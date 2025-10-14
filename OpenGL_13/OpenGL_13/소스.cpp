@@ -6,6 +6,7 @@
 #include <GL/freeglut_ext.h>
 #include <iostream>
 #include <random>
+#include <vector>
 
 using namespace std;
 
@@ -21,6 +22,7 @@ char* filetobuf(const char* file);
 
 random_device rd;
 uniform_real_distribution<float> color(0.0f, 1.0f);
+uniform_real_distribution<float> ranPos(-1.0f, 1.0f);
 
 GLint width = 800, height = 800;
 GLuint shaderProgramID;
@@ -28,6 +30,44 @@ GLuint vertexShader;
 GLuint fragmentShader;
 
 GLuint VAO, VBO;
+
+struct SHAPE
+{
+	int vertexNum; // 꼭짓점 개수
+	GLuint VAO, VBO;
+	bool isPlus; // 합쳐졌는지 여부
+	vector<float> vertices; // 꼭짓점 좌표
+	float r, g, b;
+	float vx, vy; // 중심 좌표
+}s[12];
+
+void reset()
+{
+	for (int i = 0; i < 3; ++i)
+	{
+		s[i].vertices =
+		{
+			s[i].vx - 0.01f, s[i].vy + 0.01f, 0.0f,
+			s[i].vx - 0.01f, s[i].vy - 0.01f, 0.0f,
+			s[i].vx + 0.01f, s[i].vy - 0.01f, 0.0f,
+			s[i].vx + 0.01f, s[i].vy + 0.01f, 0.0f
+		};
+	}
+
+	for (int i = 0; i < 12; ++i)
+	{
+		s[i].isPlus = false;
+		s[i].r = color(rd);
+		s[i].g = color(rd);
+		s[i].b = color(rd);
+		s[i].vx = ranPos(rd);
+		s[i].vy = ranPos(rd);
+		if (i < 3) s[i].vertexNum = 1;
+		else if (i >= 3 && i < 6) s[i].vertexNum = 3;
+		else if (i >= 6 && i < 9) s[i].vertexNum = 4;
+		else s[i].vertexNum = 5;
+	}
+}
 
 void main(int argc, char** argv)
 {
@@ -55,9 +95,18 @@ GLvoid drawScene()
 	glUseProgram(shaderProgramID);
 	glPointSize(2.0);
 	GLint loc = glGetUniformLocation(shaderProgramID, "u_color");
-	glUniform3f(loc, 1.0f, 1.0f, 1.0f);
-	glBindVertexArray(VAO);
-	glDrawArrays(GL_LINE_STRIP, 0, 3);
+	for (int i = 0; i < 12; ++i)
+	{
+		if (!s[i].isPlus)
+		{
+			glUniform3f(loc, s[i].r, s[i].g, s[i].b);
+			glBindVertexArray(s[i].VAO);
+			if (i > 2)
+				glDrawArrays(GL_TRIANGLES, 0, s[i].vertexNum / 3);
+			else
+				glDrawArrays(GL_TRIANGLES, 0, 4);
+		}
+	}
 	glBindVertexArray(0);
 	glutSwapBuffers();
 }
