@@ -17,12 +17,15 @@ GLvoid drawScene();
 GLvoid Reshape(int w, int h);
 void Keyboard(unsigned char key, int x, int y);
 void Mouse(int button, int state, int x, int y);
+void Motion(int x, int y);
 void TimerFunction(int value);
 char* filetobuf(const char* file);
 
 random_device rd;
 uniform_real_distribution<float> color(0.0f, 1.0f);
 uniform_real_distribution<float> ranPos(-0.9f, 0.9f);
+uniform_int_distribution<int> ranDir(0, 3); // 상하좌우
+uniform_int_distribution<int> ranMove(0, 1); // 튕기기, 지그재그
 
 GLint width = 800, height = 800;
 GLuint shaderProgramID;
@@ -31,26 +34,37 @@ GLuint fragmentShader;
 
 GLuint VAO, VBO;
 
+int selectedShape = -1;
+
 struct SHAPE
 {
 	int vertexNum; // 꼭짓점 개수
 	GLuint VAO, VBO;
 	bool isPlus; // 합쳐졌는지 여부
+	bool isMove; // 움직이는지 여부
+	bool isLook; // 보이는지 여부
 	vector<float> vertices; // 꼭짓점 좌표
 	float r, g, b;
 	float vx, vy; // 중심 좌표
-}s[12];
+	float size; // 크기
+	int dir; // 상하좌우
+	int moveType; // 0: 튕기기, 1: 지그재그
+}s[15];
 
 void reset()
 {
-	for (int i = 0; i < 12; ++i)
+	for (int i = 0; i < 15; ++i)
 	{
 		s[i].isPlus = false;
+		s[i].isMove = true;
+		s[i].isLook = true;
 		s[i].r = color(rd);
 		s[i].g = color(rd);
 		s[i].b = color(rd);
 		s[i].vx = ranPos(rd);
 		s[i].vy = ranPos(rd);
+		s[i].dir = ranDir(rd);
+		s[i].moveType = ranMove(rd);
 
 		if (i < 3)
 		{
@@ -65,6 +79,7 @@ void reset()
 				s[i].vx + 0.01f, s[i].vy + 0.01f, 0.0f
 			};
 			s[i].vertexNum = 1;
+			s[i].size = 0.01f;
 		}
 		else if (i >= 3 && i < 6)
 		{
@@ -75,6 +90,7 @@ void reset()
 				s[i].vx + 0.05f, s[i].vy - 0.03f, 0.0f,
 			};
 			s[i].vertexNum = 3;
+			s[i].size = 0.05f;
 		}
 		else if (i >= 6 && i < 9)
 		{
@@ -89,8 +105,9 @@ void reset()
 				s[i].vx + 0.05f, s[i].vy + 0.05f, 0.0f
 			};
 			s[i].vertexNum = 4;
+			s[i].size = 0.05f;
 		}
-		else
+		else if (i >= 9 && i < 12)
 		{
 			s[i].vertices =
 			{
@@ -107,6 +124,17 @@ void reset()
 				s[i].vx + 0.06f, s[i].vy, 0.0f
 			};
 			s[i].vertexNum = 5;
+			s[i].size = 0.065f;
+		}
+		else
+		{
+			s[i].vertices =
+			{
+				s[i].vx, s[i].vy, 0.0f,
+				s[i].vx + 0.1f, s[i].vy + 0.1f, 0.0f,
+			};	
+			s[i].vertexNum = 2;
+			s[i].size = 0.1f;
 		}
 		s[i].VAO = VAO;
 		s[i].VBO = VBO;
@@ -141,6 +169,7 @@ void main(int argc, char** argv)
 	glutReshapeFunc(Reshape);
 	glutKeyboardFunc(Keyboard);
 	glutMouseFunc(Mouse);
+	glutMotionFunc(Motion);
 	glutMainLoop();
 }
 
@@ -151,13 +180,16 @@ GLvoid drawScene()
 	glUseProgram(shaderProgramID);
 	glPointSize(2.0);
 	GLint loc = glGetUniformLocation(shaderProgramID, "u_color");
-	for (int i = 0; i < 12; ++i)
+	for (int i = 0; i < 15; ++i)
 	{
-		if (!s[i].isPlus)
+		if (s[i].isLook)
 		{
 			glUniform3f(loc, s[i].r, s[i].g, s[i].b);
 			glBindVertexArray(s[i].VAO);
-			glDrawArrays(GL_TRIANGLES, 0, s[i].vertices.size());
+			if (s[i].vertexNum != 2)
+				glDrawArrays(GL_TRIANGLES, 0, s[i].vertices.size());
+			else
+				glDrawArrays(GL_LINES, 0, s[i].vertices.size());
 		}
 	}
 	glBindVertexArray(0);
@@ -249,8 +281,17 @@ void Keyboard(unsigned char key, int x, int y)
 	switch (key)
 	{
 	case 'c':
+		reset();
 		break;
 	case 's':
+		for (int i = 0; i < 15; ++i)
+		{
+			if (s[i].isLook && s[i].isPlus)
+			{
+				if (s[i].isMove) s[i].isMove = false;
+				else s[i].isMove = true;
+			}
+		}
 		break;
 	case 'q':
 		exit(0);
@@ -263,8 +304,156 @@ void TimerFunction(int value)
 	switch (value)
 	{
 	case 1:
+		for (int i = 0; i < 15; ++i)
+		{
+			if (s[i].isMove && s[i].isLook && s[i].isPlus)
+			{
+				if (s[i].moveType == 0) // 튕기기
+				{
+					switch (s[i].dir)
+					{
+					case 0: // 상
+						s[i].vy += 0.01f;
+						if (s[i].vy + s[i].size >= 1.0f) s[i].dir = 1;
+						break;
+					case 1: // 하
+						s[i].vy -= 0.01f;
+						if (s[i].vy - s[i].size <= -1.0f) s[i].dir = 0;
+						break;
+					case 2: // 좌
+						s[i].vx -= 0.01f;
+						if (s[i].vx - s[i].size <= -1.0f) s[i].dir = 3;
+						break;
+					case 3: // 우
+						s[i].vx += 0.01f;
+						if (s[i].vx + s[i].size >= 1.0f) s[i].dir = 2;
+						break;
+					}
+				}
+				else // 지그재그
+				{
+					switch (s[i].dir)
+					{
+					case 0: // 상
+						s[i].vy += 0.01f;
+						s[i].vx += 0.005f;
+						if (s[i].vy + s[i].size >= 1.0f) s[i].dir = 1;
+						if (s[i].vx + s[i].size >= 1.0f) s[i].vx = -1.0f + s[i].size;
+						break;
+					case 1: // 하
+						s[i].vy -= 0.01f;
+						s[i].vx -= 0.005f;
+						if (s[i].vy - s[i].size <= -1.0f) s[i].dir = 0;
+						if (s[i].vx - s[i].size <= -1.0f) s[i].vx = 1.0f - s[i].size;
+						break;
+					case 2: // 좌
+						s[i].vx -= 0.01f;
+						s[i].vy += 0.005f;
+						if (s[i].vx - s[i].size <= -1.0f) s[i].dir = 3;
+						if (s[i].vy + s[i].size >= 1.0f) s[i].vy = -1.0f + s[i].size;
+						break;
+					case 3: // 우
+						s[i].vx += 0.01f;
+						s[i].vy -= 0.005f;
+						if (s[i].vx + s[i].size >= 1.0f) s[i].dir = 2;
+						if (s[i].vy - s[i].size <= -1.0f) s[i].vy = 1.0f - s[i].size;
+						break;
+					}
+				}
+			}
+		}
 		break;
 	}
+}
+
+int isOn(int ss)
+{
+	for (int i = 0; i < 15; ++i)
+	{
+		if (s[i].isPlus) continue;
+		if (!s[i].isLook) continue;
+		if (i == ss) continue;
+
+		float dist = sqrt((s[ss].vx - s[i].vx) * (s[ss].vx - s[i].vx) + (s[ss].vy - s[i].vy) * (s[ss].vy - s[i].vy));
+		if (dist <= s[ss].size + s[i].size) return i;
+	}
+	return -1;
+}
+
+void makeVertex(int num, int shapeNum)
+{
+	if (num == 1)
+	{
+		s[shapeNum].vertices =
+		{
+			s[shapeNum].vx - 0.01f, s[shapeNum].vy + 0.01f, 0.0f,
+			s[shapeNum].vx - 0.01f, s[shapeNum].vy - 0.01f, 0.0f,
+			s[shapeNum].vx + 0.01f, s[shapeNum].vy - 0.01f, 0.0f,
+
+			s[shapeNum].vx - 0.01f, s[shapeNum].vy + 0.01f, 0.0f,
+			s[shapeNum].vx + 0.01f, s[shapeNum].vy - 0.01f, 0.0f,
+			s[shapeNum].vx + 0.01f, s[shapeNum].vy + 0.01f, 0.0f
+		};
+		s[shapeNum].size = 0.01f;
+	}
+	else if (num == 2)
+	{
+		s[shapeNum].vertices =
+		{
+			s[shapeNum].vx, s[shapeNum].vy, 0.0f,
+			s[shapeNum].vx + 1.0f, s[shapeNum].vy + 1.0f, 0.0f,
+		};
+		s[shapeNum].size = 0.1f;
+	}
+	else if (num == 3)
+	{
+		s[shapeNum].vertices =
+		{
+			s[shapeNum].vx, s[shapeNum].vy + 0.05f, 0.0f,
+			s[shapeNum].vx - 0.05f, s[shapeNum].vy - 0.03f, 0.0f,
+			s[shapeNum].vx + 0.05f, s[shapeNum].vy - 0.03f, 0.0f,
+		};
+		s[shapeNum].size = 0.05f;
+	}
+	else if (num == 4)
+	{
+		s[shapeNum].vertices =
+		{
+			s[shapeNum].vx - 0.05f, s[shapeNum].vy + 0.05f, 0.0f,
+			s[shapeNum].vx - 0.05f, s[shapeNum].vy - 0.05f, 0.0f,
+			s[shapeNum].vx + 0.05f, s[shapeNum].vy - 0.05f, 0.0f,
+
+			s[shapeNum].vx - 0.05f, s[shapeNum].vy + 0.05f, 0.0f,
+			s[shapeNum].vx + 0.05f, s[shapeNum].vy - 0.05f, 0.0f,
+			s[shapeNum].vx + 0.05f, s[shapeNum].vy + 0.05f, 0.0f
+		};
+		s[shapeNum].size = 0.05f;
+	}
+	else
+	{
+		s[shapeNum].vertices =
+		{
+			s[shapeNum].vx, s[shapeNum].vy + 0.05f, 0.0f,
+			s[shapeNum].vx - 0.06f, s[shapeNum].vy, 0.0f,
+			s[shapeNum].vx + 0.06f, s[shapeNum].vy, 0.0f,
+
+			s[shapeNum].vx - 0.06f, s[shapeNum].vy, 0.0f,
+			s[shapeNum].vx - 0.04f, s[shapeNum].vy - 0.065f, 0.0f,
+			s[shapeNum].vx + 0.04f, s[shapeNum].vy - 0.065f, 0.0f,
+
+			s[shapeNum].vx - 0.06f, s[shapeNum].vy, 0.0f,
+			s[shapeNum].vx + 0.04f, s[shapeNum].vy - 0.065f, 0.0f,
+			s[shapeNum].vx + 0.06f, s[shapeNum].vy, 0.0f
+		};
+		s[shapeNum].size = 0.065f;
+	}
+	glBindVertexArray(s[shapeNum].VAO);
+	glBindBuffer(GL_ARRAY_BUFFER, s[shapeNum].VBO);
+	glBufferData(GL_ARRAY_BUFFER, s[shapeNum].vertices.size() * sizeof(float), s[shapeNum].vertices.data(), GL_STATIC_DRAW);
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(0);
+	glBindVertexArray(0);
 }
 
 void Mouse(int button, int state, int x, int y)
@@ -273,6 +462,89 @@ void Mouse(int button, int state, int x, int y)
 	float oy = 1.0f - (float)y / height * 2.0f;
 	if ((button == GLUT_LEFT_BUTTON && state == GLUT_DOWN))
 	{
+		for (int i = 0; i < 15; ++i)
+		{
+			if (!s[i].isLook || s[i].isPlus) continue;
+			if (i < 3 && ox >= s[i].vx - 0.01f && ox <= s[i].vx + 0.01f && oy >= s[i].vy - 0.01f && oy <= s[i].vy + 0.01f)
+			{
+				selectedShape = i;
+				cout << selectedShape << "번 점 선택됨" << endl;
+				break;
+			}
+			else if (i >= 3 && i < 6 && ox >= s[i].vx - 0.05f && ox <= s[i].vx + 0.05f && oy >= s[i].vy - 0.03f && oy <= s[i].vy + 0.05f)
+			{
+				selectedShape = i;
+				cout << selectedShape << "번 삼각형 선택됨" << endl;
+				break;
+			}
+			else if (i >= 6 && i < 9 && ox >= s[i].vx - 0.05f && ox <= s[i].vx + 0.05f && oy >= s[i].vy - 0.05f && oy <= s[i].vy + 0.05f)
+			{
+				selectedShape = i;
+				cout << selectedShape << "번 사각형 선택됨" << endl;
+				break;
+			}
+			else if (i >= 9 && i < 12 && ox >= s[i].vx - 0.06f && ox <= s[i].vx + 0.06f && oy >= s[i].vy - 0.065f && oy <= s[i].vy + 0.05f)
+			{
+				selectedShape = i;
+				cout << selectedShape << "번 오각형 선택됨" << endl;
+				break;
+			}
+			else if (i >= 12 && ox >= s[i].vx && ox <= s[i].vx + 0.1f && s[i].vy >= s[i].vy && s[i].vy <= s[i].vy + 0.1f)
+			{
+				selectedShape = i;
+				cout << selectedShape << "번 선 선택됨" << endl;
+				break;
+			}
+			else selectedShape = -1;
+		}
+	}
+	if ((button == GLUT_LEFT_BUTTON && state == GLUT_UP))
+	{
+		int onShape = isOn(selectedShape);
+		cout << onShape << "번과 충돌" << endl;
+		if (onShape != -1 && selectedShape != -1)
+		{
+			s[onShape].isMove = true;
+			s[onShape].isPlus = true;
+			s[selectedShape].isPlus = true;
+			s[selectedShape].isLook = false;
+
+			int PlusNum = s[onShape].vertexNum + s[selectedShape].vertexNum;
+			s[onShape].vertexNum = (PlusNum > 5) ? 1 : PlusNum;
+			makeVertex(s[onShape].vertexNum, onShape);
+		}
+		selectedShape = -1;
 	}
 	glutPostRedisplay();
+}
+
+void Motion(int x, int y)
+{
+	if (selectedShape != -1)
+	{
+		float ox = (float)x / (width * 0.5f) - 1.0f;
+		float oy = 1.0f - (float)y / (height * 0.5f);
+
+		float a = ox - s[selectedShape].vx;
+		float b = oy - s[selectedShape].vy;
+
+		s[selectedShape].vx = ox;
+		s[selectedShape].vy = oy;
+
+		for (size_t i = 0; i < s[selectedShape].vertices.size(); i += 3)
+		{
+			s[selectedShape].vertices[i] += a;
+			s[selectedShape].vertices[i + 1] += b;
+		}
+
+		glBindVertexArray(s[selectedShape].VAO);
+		glBindBuffer(GL_ARRAY_BUFFER, s[selectedShape].VBO);
+		glBufferData(GL_ARRAY_BUFFER, s[selectedShape].vertices.size() * sizeof(float), s[selectedShape].vertices.data(), GL_STATIC_DRAW);
+
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+		glEnableVertexAttribArray(0);
+		glBindVertexArray(0);
+
+		glutPostRedisplay();
+	}
 }
