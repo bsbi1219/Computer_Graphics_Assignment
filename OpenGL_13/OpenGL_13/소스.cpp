@@ -22,7 +22,7 @@ char* filetobuf(const char* file);
 
 random_device rd;
 uniform_real_distribution<float> color(0.0f, 1.0f);
-uniform_real_distribution<float> ranPos(-1.0f, 1.0f);
+uniform_real_distribution<float> ranPos(-0.9f, 0.9f);
 
 GLint width = 800, height = 800;
 GLuint shaderProgramID;
@@ -43,17 +43,6 @@ struct SHAPE
 
 void reset()
 {
-	for (int i = 0; i < 3; ++i)
-	{
-		s[i].vertices =
-		{
-			s[i].vx - 0.01f, s[i].vy + 0.01f, 0.0f,
-			s[i].vx - 0.01f, s[i].vy - 0.01f, 0.0f,
-			s[i].vx + 0.01f, s[i].vy - 0.01f, 0.0f,
-			s[i].vx + 0.01f, s[i].vy + 0.01f, 0.0f
-		};
-	}
-
 	for (int i = 0; i < 12; ++i)
 	{
 		s[i].isPlus = false;
@@ -62,10 +51,76 @@ void reset()
 		s[i].b = color(rd);
 		s[i].vx = ranPos(rd);
 		s[i].vy = ranPos(rd);
-		if (i < 3) s[i].vertexNum = 1;
-		else if (i >= 3 && i < 6) s[i].vertexNum = 3;
-		else if (i >= 6 && i < 9) s[i].vertexNum = 4;
-		else s[i].vertexNum = 5;
+
+		if (i < 3)
+		{
+			s[i].vertices =
+			{
+				s[i].vx - 0.01f, s[i].vy + 0.01f, 0.0f,
+				s[i].vx - 0.01f, s[i].vy - 0.01f, 0.0f,
+				s[i].vx + 0.01f, s[i].vy - 0.01f, 0.0f,
+
+				s[i].vx - 0.01f, s[i].vy + 0.01f, 0.0f,
+				s[i].vx + 0.01f, s[i].vy - 0.01f, 0.0f,
+				s[i].vx + 0.01f, s[i].vy + 0.01f, 0.0f
+			};
+			s[i].vertexNum = 1;
+		}
+		else if (i >= 3 && i < 6)
+		{
+			s[i].vertices =
+			{
+				s[i].vx, s[i].vy + 0.05f, 0.0f,
+				s[i].vx - 0.05f, s[i].vy - 0.03f, 0.0f,
+				s[i].vx + 0.05f, s[i].vy - 0.03f, 0.0f,
+			};
+			s[i].vertexNum = 3;
+		}
+		else if (i >= 6 && i < 9)
+		{
+			s[i].vertices =
+			{
+				s[i].vx - 0.05f, s[i].vy + 0.05f, 0.0f,
+				s[i].vx - 0.05f, s[i].vy - 0.05f, 0.0f,
+				s[i].vx + 0.05f, s[i].vy - 0.05f, 0.0f,
+
+				s[i].vx - 0.05f, s[i].vy + 0.05f, 0.0f,
+				s[i].vx + 0.05f, s[i].vy - 0.05f, 0.0f,
+				s[i].vx + 0.05f, s[i].vy + 0.05f, 0.0f
+			};
+			s[i].vertexNum = 4;
+		}
+		else
+		{
+			s[i].vertices =
+			{
+				s[i].vx, s[i].vy + 0.05f, 0.0f,
+				s[i].vx - 0.06f, s[i].vy, 0.0f,
+				s[i].vx + 0.06f, s[i].vy, 0.0f,
+
+				s[i].vx - 0.06f, s[i].vy, 0.0f,
+				s[i].vx - 0.04f, s[i].vy - 0.065f, 0.0f,
+				s[i].vx + 0.04f, s[i].vy - 0.065f, 0.0f,
+
+				s[i].vx - 0.06f, s[i].vy, 0.0f,
+				s[i].vx + 0.04f, s[i].vy - 0.065f, 0.0f,
+				s[i].vx + 0.06f, s[i].vy, 0.0f
+			};
+			s[i].vertexNum = 5;
+		}
+		s[i].VAO = VAO;
+		s[i].VBO = VBO;
+
+		glGenVertexArrays(1, &s[i].VAO);
+		glGenBuffers(1, &s[i].VBO);
+
+		glBindVertexArray(s[i].VAO);
+		glBindBuffer(GL_ARRAY_BUFFER, s[i].VBO);
+		glBufferData(GL_ARRAY_BUFFER, s[i].vertices.size() * sizeof(float), s[i].vertices.data(), GL_STATIC_DRAW);
+
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+		glEnableVertexAttribArray(0);
+		glBindVertexArray(0);
 	}
 }
 
@@ -78,6 +133,7 @@ void main(int argc, char** argv)
 	glutCreateWindow("Example1");
 	glewExperimental = GL_TRUE;
 	glewInit();
+	reset();
 	make_vertexShaders();
 	make_fragmentShaders();
 	shaderProgramID = make_shaderProgram();
@@ -101,10 +157,7 @@ GLvoid drawScene()
 		{
 			glUniform3f(loc, s[i].r, s[i].g, s[i].b);
 			glBindVertexArray(s[i].VAO);
-			if (i > 2)
-				glDrawArrays(GL_TRIANGLES, 0, s[i].vertexNum / 3);
-			else
-				glDrawArrays(GL_TRIANGLES, 0, 4);
+			glDrawArrays(GL_TRIANGLES, 0, s[i].vertices.size());
 		}
 	}
 	glBindVertexArray(0);
