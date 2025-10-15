@@ -300,7 +300,11 @@ GLvoid drawScene()
 			}
 			else if (i == 3 && shape3Done)
 			{
-				glDrawArrays(GL_LINES, 0, 9);
+				glDrawArrays(GL_LINES, 0, 3);
+			}
+			else if (i == 3 && !shape3Done)
+			{
+				glDrawArrays(GL_TRIANGLES, 0, 3);
 			}
 			else
 				glDrawArrays(GL_TRIANGLES, 0, 9);
@@ -575,7 +579,7 @@ void TimerFunction(int value)
 	case 1:
 		if (shape[0].animating)
 		{
-			shapeAnimation('l', 0.02f);
+			shapeAnimation('l', 0.01f);
 			glutPostRedisplay();
 			glutTimerFunc(16, TimerFunction, 1);
 		}
@@ -583,7 +587,7 @@ void TimerFunction(int value)
 	case 2:
 		if (shape[1].animating)
 		{
-			shapeAnimation('t', 0.02f);
+			shapeAnimation('t', 0.01f);
 			glutPostRedisplay();
 			glutTimerFunc(16, TimerFunction, 2);
 		}
@@ -591,7 +595,7 @@ void TimerFunction(int value)
 	case 3:
 		if (shape[2].animating)
 		{
-			shapeAnimation('r', 0.02f);
+			shapeAnimation('r', 0.01f);
 			glutPostRedisplay();
 			glutTimerFunc(16, TimerFunction, 3);
 		}
