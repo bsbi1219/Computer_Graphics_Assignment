@@ -210,10 +210,22 @@ void make_fragmentShaders()
 int returnIndex(int loc)
 {
 	int idx = -1;
-	if (loc == 1) idx = 0 + triCnt[0];
-	else if (loc == 2) idx = 4 + triCnt[1];
-	else if (loc == 3) idx = 8 + triCnt[2];
-	else if (loc == 4) idx = 12 + triCnt[3];
+	if (loc == 1) 
+	{
+		idx = 0 + triCnt[0];
+	}
+	else if (loc == 2) 
+	{
+		idx = 4 + triCnt[1];
+	}
+	else if (loc == 3) 
+	{
+		idx = 8 + triCnt[2];
+	}
+	else if (loc == 4) 
+	{
+		idx = 12 + triCnt[3];
+	}
 
 	return idx;
 }
@@ -516,6 +528,19 @@ void Zigzag_tri()
 	}
 }
 
+bool isOutRight(int i) {
+	return tri[i].vx[0] > 0.9f || tri[i].vx[1] > 0.9f || tri[i].vx[2] > 0.9f;
+}
+bool isOutLeft(int i) {
+	return tri[i].vx[0] < -0.9f || tri[i].vx[1] < -0.9f || tri[i].vx[2] < -0.9f;
+}
+bool isOutUp(int i) {
+	return tri[i].vy[0] > 0.9f || tri[i].vy[1] > 0.9f || tri[i].vy[2] > 0.9f;
+}
+bool isOutDown(int i) {
+	return tri[i].vy[0] < -0.9f || tri[i].vy[1] < -0.9f || tri[i].vy[2] < -0.9f;
+}
+
 void Rect_Spiral()
 {
 	for (int i = 0; i < 16; ++i)
@@ -523,23 +548,27 @@ void Rect_Spiral()
 		if (tri[i].loc == -1) continue;
 		if (canMove_lr[i] < 0.1f || canMove_ud[i] < 0.1f) continue;
 
-		if (tri[i].vx[2] > 0.9f) 
-		{
+		if (isOutRight(i)) {
+			for (int j = 0; j < 3; ++j)
+				if (tri[i].vx[j] > 0.9f) tri[i].vx[j] = 0.9f;
 			lrud[i] = 2;
 			realMove_lr[i] = 0.0f;
 		}
-		if (tri[i].vx[1] < -0.9f) 
-		{
+		if (isOutLeft(i)) {
+			for (int j = 0; j < 3; ++j)
+				if (tri[i].vx[j] < -0.9f) tri[i].vx[j] = -0.9f;
 			lrud[i] = 3;
 			realMove_lr[i] = 0.0f;
 		}
-		if (tri[i].vy[0] > 0.9f) 
-		{
+		if (isOutUp(i)) {
+			for (int j = 0; j < 3; ++j)
+				if (tri[i].vy[j] > 0.9f) tri[i].vy[j] = 0.9f;
 			lrud[i] = 0;
 			realMove_ud[i] = 0.0f;
 		}
-		if (tri[i].vy[1] < -0.9f) 
-		{
+		if (isOutDown(i)) {
+			for (int j = 0; j < 3; ++j)
+				if (tri[i].vy[j] < -0.9f) tri[i].vy[j] = -0.9f;
 			lrud[i] = 1;
 			realMove_ud[i] = 0.0f;
 		}
@@ -771,6 +800,16 @@ void Mouse(int button, int state, int x, int y)
 		{
 			if (loc == i + 1 && triCnt[i] < 4)
 			{
+				createShape(ox, oy, loc);
+			}
+			else if (loc == i + 1 && triCnt[i] == 4)
+			{
+				tri[i * 4].loc = -1;
+				for (int j = 1; j < 4; ++j)
+				{
+					tri[i * 4 + j - 1] = tri[i * 4 + j];
+				}
+				triCnt[i]--;
 				createShape(ox, oy, loc);
 			}
 		}
