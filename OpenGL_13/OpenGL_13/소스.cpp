@@ -26,7 +26,7 @@ void makeVertex(int num, int shapeNum);
 random_device rd;
 uniform_real_distribution<float> color(0.0f, 1.0f);
 uniform_real_distribution<float> ranPos(-0.9f, 0.9f);
-uniform_real_distribution<float> ranSpeed(0.01f, 0.03f);
+uniform_real_distribution<float> ranSpeed(0.006f, 0.01f);
 uniform_int_distribution<int> ranMove(0, 1); // 튕기기, 지그재그
 
 GLint width = 800, height = 800;
@@ -180,7 +180,7 @@ void main(int argc, char** argv)
 
 GLvoid drawScene()
 {
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 	glUseProgram(shaderProgramID);
 	glPointSize(2.0);
@@ -353,12 +353,12 @@ void TimerFunction(int value)
 						if (s[i].vx + s[i].size >= 1.0f) 
 						{
 							s[i].dir_lr = 0;
-							s[i].vy += dy;
+							s[i].vy += dy * 2;
 						}
 						if (s[i].vx - s[i].size <= -1.0f) 
 						{
 							s[i].dir_lr = 1;
-							s[i].vy += dy;
+							s[i].vy += dy * 2;
 						}
 						if (s[i].vy + s[i].size >= 1.0f) s[i].dir_ud = 1;
 						if (s[i].vy - s[i].size <= -1.0f) s[i].dir_ud = 0;
@@ -377,7 +377,6 @@ int isOn(int ss)
 {
 	for (int i = 0; i < 15; ++i)
 	{
-		if (s[i].isPlus) continue;
 		if (!s[i].isLook) continue;
 		if (i == ss) continue;
 
@@ -471,34 +470,39 @@ void Mouse(int button, int state, int x, int y)
 	{
 		for (int i = 0; i < 15; ++i)
 		{
-			if (!s[i].isLook || s[i].isPlus) continue;
+			if (!s[i].isLook) continue;
 			if (i < 3 && ox >= s[i].vx - 0.01f && ox <= s[i].vx + 0.01f && oy >= s[i].vy - 0.01f && oy <= s[i].vy + 0.01f)
 			{
 				selectedShape = i;
+				if (s[i].isMove) s[i].isMove = false;
 				cout << selectedShape << "번 점 선택됨" << endl;
 				break;
 			}
-			else if (i >= 3 && i < 6 && ox >= s[i].vx - 0.05f && ox <= s[i].vx + 0.05f && oy >= s[i].vy - 0.03f && oy <= s[i].vy + 0.05f)
+			else if (i >= 3 && i < 6 && ox >= s[i].vx - 0.05f && ox <= s[i].vx + 0.05f && oy >= s[i].vy - 0.05f && oy <= s[i].vy + 0.03f)
 			{
 				selectedShape = i;
+				if (s[i].isMove) s[i].isMove = false;
 				cout << selectedShape << "번 삼각형 선택됨" << endl;
 				break;
 			}
 			else if (i >= 6 && i < 9 && ox >= s[i].vx - 0.05f && ox <= s[i].vx + 0.05f && oy >= s[i].vy - 0.05f && oy <= s[i].vy + 0.05f)
 			{
 				selectedShape = i;
+				if (s[i].isMove) s[i].isMove = false;
 				cout << selectedShape << "번 사각형 선택됨" << endl;
 				break;
 			}
 			else if (i >= 9 && i < 12 && ox >= s[i].vx - 0.06f && ox <= s[i].vx + 0.06f && oy >= s[i].vy - 0.065f && oy <= s[i].vy + 0.05f)
 			{
 				selectedShape = i;
+				if (s[i].isMove) s[i].isMove = false;
 				cout << selectedShape << "번 오각형 선택됨" << endl;
 				break;
 			}
 			else if (i >= 12 && ox >= s[i].vx && ox <= s[i].vx + 0.1f && s[i].vy >= s[i].vy && s[i].vy <= s[i].vy + 0.1f)
 			{
 				selectedShape = i;
+				if (s[i].isMove) s[i].isMove = false;
 				cout << selectedShape << "번 선 선택됨" << endl;
 				break;
 			}
@@ -507,6 +511,7 @@ void Mouse(int button, int state, int x, int y)
 	}
 	if ((button == GLUT_LEFT_BUTTON && state == GLUT_UP))
 	{
+		if (allMove && s[selectedShape].isPlus) s[selectedShape].isMove = true;
 		int onShape = isOn(selectedShape);
 		cout << onShape << "번과 충돌" << endl;
 		if (onShape != -1 && selectedShape != -1)
@@ -516,6 +521,7 @@ void Mouse(int button, int state, int x, int y)
 			s[onShape].isLook = true;
 			s[selectedShape].isPlus = true;
 			s[selectedShape].isLook = false;
+			s[selectedShape].isMove = false;
 
 			int PlusNum = s[onShape].vertexNum + s[selectedShape].vertexNum;
 			s[onShape].vertexNum = (PlusNum > 5) ? 1 : PlusNum;
