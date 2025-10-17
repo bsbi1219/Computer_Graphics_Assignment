@@ -1,176 +1,213 @@
 #define _CRT_SECURE_NO_WARNINGS
-#include <stdlib.h>
-#include <stdio.h>
-#include <GL/glew.h>
-#include <GL/freeglut.h>
-#include <GL/freeglut_ext.h>
-#include <gl/glm/glm.hpp>
-#include <gl/glm/ext.hpp>
-#include <gl/glm/gtc/matrix_transform.hpp>
 #include <iostream>
-#include <random>
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <gl/glew.h>
+#include <gl/freeglut.h>
+#include <gl/glm/glm.hpp>
+#include <gl/glm/gtc/matrix_transform.hpp>
+#include <gl/glm/gtc/type_ptr.hpp>
 using namespace std;
 
-void make_vertexShaders();
-void make_fragmentShaders();
-GLuint make_shaderProgram();
-GLvoid drawScene();
-GLvoid Reshape(int w, int h);
-void Keyboard(unsigned char key, int x, int y);
-void Mouse(int button, int state, int x, int y);
-void Motion(int x, int y);
-void TimerFunction(int value);
-char* filetobuf(const char* file);
+#define MAX_LINE_LENGTH 256
 
-random_device rd;
-
-GLint width = 800, height = 800;
-GLuint shaderProgramID;
-GLuint vertexShader;
-GLuint fragmentShader;
-
-GLuint VAO, VBO;
-
-void main(int argc, char** argv)
+typedef struct 
 {
-	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
-	glutInitWindowPosition(100, 100);
-	glutInitWindowSize(width, height);
-	glutCreateWindow("Example1");
-	glewExperimental = GL_TRUE;
-	glewInit();
-	make_vertexShaders();
-	make_fragmentShaders();
-	shaderProgramID = make_shaderProgram();
-	glutDisplayFunc(drawScene);
-	glutReshapeFunc(Reshape);
-	glutKeyboardFunc(Keyboard);
-	glutMouseFunc(Mouse);
-	glutMotionFunc(Motion);
-	glutMainLoop();
+    float x, y, z;
+} Vertex;
+typedef struct 
+{
+    unsigned int v1, v2, v3;
+} Face;
+typedef struct 
+{
+    Vertex* vertices;
+    size_t vertex_count;
+    Face* faces;
+    size_t face_count;
+} Model;
+void read_newline(char* str) 
+{
+    char* pos;
+    if ((pos = strchr(str, '\n')) != NULL)
+        *pos = '\0';
+}
+void read_obj_file(const char* filename, Model* model) 
+{
+    FILE* file;
+    fopen_s(&file, filename, "r");
+    if (!file) {
+        perror("Error opening file");
+        exit(EXIT_FAILURE);
+    }
+    char line[MAX_LINE_LENGTH];
+    model->vertex_count = 0;
+    model->face_count = 0;
+    while (fgets(line, sizeof(line), file)) 
+    {
+        read_newline(line);
+        if (line[0] == 'v' && line[1] == ' ')
+            model->vertex_count++;
+        else if (line[0] == 'f' && line[1] == ' ')
+            model->face_count++;
+    }
+    fseek(file, 0, SEEK_SET);
+    model->vertices = (Vertex*)malloc(model->vertex_count * sizeof(Vertex));
+    model->faces = (Face*)malloc(model->face_count * sizeof(Face));
+    size_t vertex_index = 0; size_t face_index = 0;
+    while (fgets(line, sizeof(line), file)) 
+    {
+        read_newline(line);
+        if (line[0] == 'v' && line[1] == ' ') 
+        {
+            int result = sscanf_s(line + 2, "%f %f %f", &model->vertices[vertex_index].x,
+                &model->vertices[vertex_index].y,
+                &model->vertices[vertex_index].z);
+            vertex_index++;
+        }
+        else if (line[0] == 'f' && line[1] == ' ') 
+        {
+            unsigned int v1, v2, v3;
+            int result = sscanf_s(line + 2, "%u %u %u", &v1, &v2, &v3);
+            model->faces[face_index].v1 = v1 - 1; // OBJ indices start at 1
+            model->faces[face_index].v2 = v2 - 1;
+            model->faces[face_index].v3 = v3 - 1;
+            face_index++;
+        }
+    }
+    fclose(file);
 }
 
-GLvoid drawScene()
+char* filetobuf(const char* file) 
 {
-	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
-	glUseProgram(shaderProgramID);
-	glPointSize(2.0);
-	GLint loc = glGetUniformLocation(shaderProgramID, "u_color");
-	glUniform3f(loc, 0.0f, 0.0f, 0.0f);
-	glBindVertexArray(VAO);
-	glDrawArrays(GL_TRIANGLES, 0, 3);
-	glBindVertexArray(0);
-	glutSwapBuffers();
+    FILE* fptr = fopen(file, "rb");
+    if (!fptr) return NULL;
+    fseek(fptr, 0, SEEK_END);
+    long length = ftell(fptr);
+    char* buf = (char*)malloc(length + 1);
+    fseek(fptr, 0, SEEK_SET);
+    fread(buf, length, 1, fptr);
+    fclose(fptr);
+    buf[length] = 0;
+    return buf;
 }
 
-GLvoid Reshape(int w, int h)
+GLuint shaderProgram;
+GLuint VAO, VBO, EBO;
+Model cubeModel;
+
+void make_shader() 
 {
-	glViewport(0, 0, w, h);
+    char* vsrc = filetobuf("vertex.glsl");
+    char* fsrc = filetobuf("fragment.glsl");
+
+    GLuint vs = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vs, 1, &vsrc, NULL);
+    glCompileShader(vs);
+    free(vsrc);
+
+    GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fs, 1, &fsrc, NULL);
+    glCompileShader(fs);
+    free(fsrc);
+
+    shaderProgram = glCreateProgram();
+    glAttachShader(shaderProgram, vs);
+    glAttachShader(shaderProgram, fs);
+    glLinkProgram(shaderProgram);
+
+    glDeleteShader(vs);
+    glDeleteShader(fs);
 }
 
-void make_vertexShaders()
+// === 초기화 ===
+void init() 
 {
-	GLchar* vertexSource;
-	vertexSource = filetobuf("vertex.glsl");
-	vertexShader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vertexShader, 1, &vertexSource, NULL);
-	glCompileShader(vertexShader);
-	GLint result;
-	GLchar errorLog[512];
-	glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &result);
-	if (!result)
-	{
-		glGetShaderInfoLog(vertexShader, 512, NULL, errorLog);
-		std::cerr << "ERROR: vertex shader\n" << errorLog << std::endl;
-		return;
-	}
+    glewInit();
+    read_obj_file("cube.obj", &cubeModel);
+    make_shader();
+
+    glGenVertexArrays(1, &VAO);
+    glBindVertexArray(VAO);
+
+    glGenBuffers(1, &VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER,
+        cubeModel.vertex_count * sizeof(Vertex),
+        cubeModel.vertices, GL_STATIC_DRAW);
+
+    glGenBuffers(1, &EBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+        cubeModel.face_count * 3 * sizeof(unsigned int),
+        cubeModel.faces, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glEnable(GL_DEPTH_TEST);
+    glClearColor(0.0, 0.0, 0.0, 1.0);
 }
 
-void make_fragmentShaders()
+// === 렌더링 ===
+float angle = 0.0f;
+
+void display() 
 {
-	GLchar* fragmentSource;
-	fragmentSource = filetobuf("fragment.glsl");
-	fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fragmentShader, 1, &fragmentSource, NULL);
-	glCompileShader(fragmentShader);
-	GLint result;
-	GLchar errorLog[512];
-	glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &result);
-	if (!result)
-	{
-		glGetShaderInfoLog(fragmentShader, 512, NULL, errorLog);
-		std::cerr << "ERROR: frag_shader\n" << errorLog << std::endl;
-		return;
-	}
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glUseProgram(shaderProgram);
+
+    glm::mat4 model(1.0f);
+    model = glm::rotate(model, glm::radians(angle), glm::vec3(1, 1, 0));
+
+    glm::mat4 view = glm::lookAt(
+        glm::vec3(1.5f, 1.5f, 1.5f),  // 카메라 위치
+        glm::vec3(0.0f, 0.0f, 0.0f),  // 바라보는 지점
+        glm::vec3(0.0f, 1.0f, 0.0f)); // 업 벡터
+
+    glm::mat4 projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 10.0f);
+
+    GLint modelLoc = glGetUniformLocation(shaderProgram, "model");
+    GLint viewLoc = glGetUniformLocation(shaderProgram, "view");
+    GLint projLoc = glGetUniformLocation(shaderProgram, "projection");
+
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+    glBindVertexArray(VAO);
+    glDrawElements(GL_TRIANGLES, cubeModel.face_count * 3, GL_UNSIGNED_INT, 0);
+
+    glutSwapBuffers();
+    angle += 0.5f;
+    if (angle > 360.0f) angle = 0.0f;
 }
 
-GLuint make_shaderProgram()
+void timer(int value) 
 {
-	GLint result;
-	GLchar* errorLog = NULL;
-	GLuint shaderID;
-	shaderID = glCreateProgram();
-	glAttachShader(shaderID, vertexShader);
-	glAttachShader(shaderID, fragmentShader);
-	glLinkProgram(shaderID);
-	glDeleteShader(vertexShader);
-	glDeleteShader(fragmentShader);
-	glGetProgramiv(shaderID, GL_LINK_STATUS, &result);
-	if (!result) {
-		glGetProgramInfoLog(shaderID, 512, NULL, errorLog);
-		std::cerr << "ERROR: shader program\n" << errorLog << std::endl;
-		return false;
-	}
-	glUseProgram(shaderID);
-	return shaderID;
+    
 }
 
-char* filetobuf(const char* file)
+void reshape(int w, int h) 
 {
-	FILE* fptr;
-	long length;
-	char* buf;
-	fptr = fopen(file, "rb"); // Open file for reading
-	if (!fptr) // Return NULL on failure
-		return NULL;
-	fseek(fptr, 0, SEEK_END); // Seek to the end of the file
-	length = ftell(fptr); // Find out how many bytes into the file we are
-	buf = (char*)malloc(length + 1); // Allocate a buffer for the entire length of the file and a null terminator
-	fseek(fptr, 0, SEEK_SET); // Go back to the beginning of the file
-	fread(buf, length, 1, fptr); // Read the contents of the file in to the buffer
-	fclose(fptr); // Close the file
-	buf[length] = 0; // Null terminator
-	return buf; // Return the buffer
+    glViewport(0, 0, w, h);
 }
 
-void Keyboard(unsigned char key, int x, int y)
+int main(int argc, char** argv) 
 {
-	switch (key)
-	{
-	case 'q':
-		exit(0);
-	}
-	glutPostRedisplay();
-}
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH);
+    glutInitWindowSize(800, 600);
+    glutCreateWindow("OBJ Cube 3D");
 
-void TimerFunction(int value)
-{
+    init();
+    glutDisplayFunc(display);
+    glutReshapeFunc(reshape);
+    //glutTimerFunc(16, timer, 0);
 
-}
-
-void Mouse(int button, int state, int x, int y)
-{
-	float ox = (float)x / width * 2.0f - 1.0f;
-	float oy = 1.0f - (float)y / height * 2.0f;
-	if ((button == GLUT_LEFT_BUTTON && state == GLUT_DOWN))
-	{
-	}
-	glutPostRedisplay();
-}
-
-void Motion(int x, int y)
-{
+    glutMainLoop();
+    return 0;
 }
