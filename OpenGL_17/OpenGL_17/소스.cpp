@@ -113,10 +113,16 @@ Model cubeModel, PyramidModel;
 
 GLenum polygonMode = GL_FILL;
 
-bool drawCube = false;
-bool drawPyramid = false;
+bool drawCube = true;
 bool keyH = true;
-int dirY = 0; // 0 : ¾ç, 1 : À½
+bool keyY = false;
+int keyO = 2;
+float angleY = 0.0f;
+float angle0 = 0.0f;
+float angle1 = 0.0f;
+float angle2 = 0.0f;
+float angle3 = 0.0f;
+int dirX = 0;
 
 glm::mat4 view = glm::lookAt(glm::vec3(-2.0f, 2.0f, 3.0f), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 glm::mat4 projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 10.0f);
@@ -263,11 +269,10 @@ void display()
     GLint viewLoc = glGetUniformLocation(shaderProgram, "view");
     GLint projLoc = glGetUniformLocation(shaderProgram, "projection");
 
-    // glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(moveX, moveY, 0.0f));
-    // model = glm::rotate(model, glm::radians(angleX), glm::vec3(1, 0, 0));
-    // model = glm::rotate(model, glm::radians(angleY), glm::vec3(0, 1, 0));
+    glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+    model = glm::rotate(model, glm::radians(angleY), glm::vec3(0, 1, 0));
 
-    // glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
@@ -286,8 +291,26 @@ void display()
     glBindVertexArray(PyrVAO);
     for (int i = 0; i < PyramidModel.face_count; ++i)
     {
-        if (drawPyramid)
+        if (!drawCube)
         {
+            unsigned int baseIdx = PyramidModel.faces[i].v1;
+            Vertex baseVertex = PyramidModel.vertices[baseIdx];
+            glm::vec3 pivot(baseVertex.x, baseVertex.y, baseVertex.z);
+            glm::mat4 pyrModel = glm::mat4(1.0f);
+            pyrModel = glm::translate(pyrModel, pivot);
+
+            if (i == 0)
+                pyrModel = glm::rotate(pyrModel, glm::radians(angle0), glm::vec3(1, 0, 0));
+            if (i == 2)
+                pyrModel = glm::rotate(pyrModel, glm::radians(angle2), glm::vec3(1, 0, 0));
+            if (i == 1)
+                pyrModel = glm::rotate(pyrModel, glm::radians(angle1), glm::vec3(0, 0, 1));
+            if (i == 3)
+                pyrModel = glm::rotate(pyrModel, glm::radians(angle3), glm::vec3(0, 0, 1));
+
+            pyrModel = glm::translate(pyrModel, -pivot);
+
+            glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(pyrModel));
             glUniform3f(glGetUniformLocation(shaderProgram, "u_color"),
                 pyrFaceColors[i].r, pyrFaceColors[i].g, pyrFaceColors[i].b);
             glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, (void*)(i * 3 * sizeof(unsigned int)));
@@ -317,12 +340,51 @@ void display()
 
 void reset()
 {
+	drawCube = true;
+	keyH = true;
+	keyY = false;
+	angleY = 0.0f;
 }
 
 void Keyboard(unsigned char key, int x, int y)
 {
     switch (key)
     {
+    case 'h':
+		keyH = !keyH;
+        break;
+    case 'p':
+		drawCube = !drawCube;
+        break;
+    case 'y':
+		keyY = !keyY;
+        glutTimerFunc(16, timer, 1);
+        break;
+    case 'c':
+        reset();
+        break;
+    case 't':
+        break;
+    case 'f':
+        break;
+    case 's':
+        break;
+    case 'b':
+        break;
+    case 'o':
+        if (!drawCube)
+        {
+            keyO += 1;
+			if (keyO > 2) keyO = 1;
+            glutTimerFunc(16, timer, 2);
+        }
+        break;
+    case 'r':
+        if (!drawCube)
+        {
+
+        }
+        break;
     case 'q':
         exit(0);
     }
@@ -331,7 +393,47 @@ void Keyboard(unsigned char key, int x, int y)
 
 void timer(int value)
 {
-    
+    switch (value)
+    {
+    case 1:
+        if (keyY)
+        {
+            angleY += 3.0f;
+            if (angleY >= 360.0f) angleY -= 360.0f;
+            glutPostRedisplay();
+            glutTimerFunc(16, timer, 1);
+            break;
+        }
+    case 2:
+        if (keyO == 1)
+        {
+            float h = 1.0f;
+            float a = 1.0f;
+            float theta = acos(h / sqrt(h * h + (a / 2) * (a / 2))) * 180.0f / 3.14;
+            if (angle0 <= (-90.0f - theta) * 2)
+            {
+                break;
+            }
+			angle0 -= 2.0f;
+			angle2 += 2.0f;
+			angle1 -= 2.0f;
+			angle3 += 2.0f;
+        }
+        else if (keyO == 2)
+        {
+            if (angle0 >= 0.0f)
+            {
+                break;
+            }
+            angle0 += 2.0f;
+            angle2 -= 2.0f;
+            angle1 += 2.0f;
+            angle3 -= 2.0f;
+        }
+        glutPostRedisplay();
+        glutTimerFunc(16, timer, 2);
+        break;
+    }
 }
 
 void reshape(int w, int h)
