@@ -116,17 +116,25 @@ GLenum polygonMode = GL_FILL;
 bool drawCube = true;
 bool keyH = true;
 bool keyY = false;
-int keyO = 2;
+bool keyS = false;
+int keyF = 0;
+int keyB = 0;
+int keyO = 0;
+int keyR = 0;
+float angleX = 0.0f;
 float angleY = 0.0f;
 float angle0 = 0.0f;
 float angle1 = 0.0f;
 float angle2 = 0.0f;
 float angle3 = 0.0f;
+float angleSide = 0.0f;
 int dirX = 0;
+float sz = 1.0f;
+float sy = 1.0f;
 
 glm::mat4 view = glm::lookAt(glm::vec3(-2.0f, 2.0f, 3.0f), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 glm::mat4 projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 10.0f);
-
+glm::mat4 model = glm::mat4(1.0f);
 glm::mat4 identity = glm::mat4(1.0f);
 
 FaceColor faceColors[12]; // 큐브는 삼각형 12개
@@ -269,18 +277,35 @@ void display()
     GLint viewLoc = glGetUniformLocation(shaderProgram, "view");
     GLint projLoc = glGetUniformLocation(shaderProgram, "projection");
 
-    glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+    model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
     model = glm::rotate(model, glm::radians(angleY), glm::vec3(0, 1, 0));
-
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
     glBindVertexArray(CubeVAO);
     for (int i = 0; i < 6; ++i) // 6면
     {
         if (drawCube)
         {
+            if (i == 0)
+				model = glm::scale(model, glm::vec3(sz, sy, 1.0f));
+            else if (i == 1)
+            {
+                unsigned int baseIdx = cubeModel.faces[i * 2].v3;
+                Vertex baseVertex = cubeModel.vertices[baseIdx];
+                glm::vec3 pivot(baseVertex.x, baseVertex.y, baseVertex.z);
+                model = glm::mat4(1.0f);
+                model = glm::translate(model, pivot);
+                model = glm::rotate(model, glm::radians(angleX), glm::vec3(1, 0, 0));
+                model = glm::translate(model, -pivot);
+            }
+            else if (i == 3 || i == 5)
+                model = glm::rotate(model, glm::radians(angleSide), glm::vec3(1, 0, 0));
+            else
+                model = glm::mat4(1.0f);
+
+            glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+            glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+            glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
             glUniform3f(glGetUniformLocation(shaderProgram, "u_color"),
                 faceColors[i * 2].r, faceColors[i * 2].g, faceColors[i * 2].b);
 
@@ -340,10 +365,24 @@ void display()
 
 void reset()
 {
-	drawCube = true;
-	keyH = true;
-	keyY = false;
-	angleY = 0.0f;
+    drawCube = true;
+    keyH = true;
+    keyY = false;
+    keyS = false;
+    keyF = 0;
+    keyB = 0;
+    keyO = 0;
+    keyR = 0;
+    angleX = 0.0f;
+    angleY = 0.0f;
+    angle0 = 0.0f;
+    angle1 = 0.0f;
+    angle2 = 0.0f;
+    angle3 = 0.0f;
+    angleSide = 0.0f;
+    dirX = 0;
+    sz = 1.0f;
+    sy = 1.0f;
 }
 
 void Keyboard(unsigned char key, int x, int y)
@@ -366,10 +405,18 @@ void Keyboard(unsigned char key, int x, int y)
     case 't':
         break;
     case 'f':
+		keyF += 1;
+		if (keyF > 2) keyF = 1;
+        glutTimerFunc(16, timer, 6);
         break;
     case 's':
+		keyS = !keyS;
+        glutTimerFunc(16, timer, 4);
         break;
     case 'b':
+		keyB += 1;
+		if (keyB > 2) keyB = 1;
+        glutTimerFunc(16, timer, 5);
         break;
     case 'o':
         if (!drawCube)
@@ -382,7 +429,9 @@ void Keyboard(unsigned char key, int x, int y)
     case 'r':
         if (!drawCube)
         {
-
+            keyR += 1;
+            if (keyR > 2) keyR = 1;
+            glutTimerFunc(16, timer, 3);
         }
         break;
     case 'q':
@@ -391,11 +440,15 @@ void Keyboard(unsigned char key, int x, int y)
     glutPostRedisplay();
 }
 
+float h = 1.0f;
+float a = 1.0f;
+float theta = acos(h / sqrt(h * h + (a / 2) * (a / 2))) * 180.0f / 3.14;
 void timer(int value)
 {
+    static bool done[4] = { true, true, true, true };
     switch (value)
     {
-    case 1:
+    case 1: // y축 회전
         if (keyY)
         {
             angleY += 3.0f;
@@ -404,20 +457,17 @@ void timer(int value)
             glutTimerFunc(16, timer, 1);
             break;
         }
-    case 2:
+	case 2: // 피라미드 한 번에 열기/닫기
         if (keyO == 1)
         {
-            float h = 1.0f;
-            float a = 1.0f;
-            float theta = acos(h / sqrt(h * h + (a / 2) * (a / 2))) * 180.0f / 3.14;
-            if (angle0 <= (-90.0f - theta) * 2)
+            if (angle0 <= (-90.0f - theta) * 2.0f)
             {
                 break;
             }
-			angle0 -= 2.0f;
-			angle2 += 2.0f;
-			angle1 -= 2.0f;
-			angle3 += 2.0f;
+            angle0 -= 2.0f;
+            angle2 += 2.0f;
+            angle1 -= 2.0f;
+            angle3 += 2.0f;
         }
         else if (keyO == 2)
         {
@@ -432,6 +482,103 @@ void timer(int value)
         }
         glutPostRedisplay();
         glutTimerFunc(16, timer, 2);
+        break;
+	case 3: // 피라미드 하나씩 열기/닫기
+        if (keyR == 1)
+        {
+            if (done[0])
+            {
+                angle0 -= 2.0f;
+				if (angle0 <= -116.0f)
+					done[0] = false;
+            }
+            else if (done[1])
+            {
+                angle1 -= 2.0f;
+                if (angle1 <= -116.0f)
+                    done[1] = false;
+            }
+            else if (done[2])
+            {
+                angle2 += 2.0f;
+				if (angle2 >= 116.0f)
+					done[2] = false;
+            }
+            else if (done[3])
+            {
+                angle3 += 2.0f;
+			    if (angle3 >= 116.0f)
+				    done[3] = false;
+            }
+        }
+        else if (keyR == 2)
+        {
+            if (!done[0])
+            {
+                angle0 += 2.0f;
+				if (angle0 >= 0.0f)
+					done[0] = true;
+            }
+            else if (!done[1])
+            {
+                angle1 += 2.0f;
+                if (angle1 >= 0.0f)
+                    done[1] = true;
+            }
+            else if (!done[2])
+            {
+                angle2 -= 2.0f;
+                if (angle2 <= 0.0f)
+                    done[2] = true;
+            }
+            else if (!done[3])
+			{
+                angle3 -= 2.0f;
+                if (angle3 <= 0.0f)
+                    done[3] = true;
+			}
+        }
+        glutPostRedisplay();
+        glutTimerFunc(16, timer, 3);
+        break;
+	case 4: // 큐브 측면 회전
+        if (keyS)
+        {
+            angleSide += 3.0f;
+            if (angleSide >= 360.0f) angleSide -= 360.0f;
+            glutPostRedisplay();
+            glutTimerFunc(16, timer, 4);
+            break;
+        }
+	case 5: // 큐브 뒷면 스케일링
+        if (keyB == 1)
+        {
+            sz -= 0.01f;
+            sy -= 0.01f;
+            if (sz <= 0.0f) break;
+		}
+        else if (keyB == 2)
+        {
+            sz += 0.01f;
+            sy += 0.01f;
+			if (sz >= 1.0f) keyB = 0;
+        }
+        glutPostRedisplay();
+        glutTimerFunc(16, timer, 5);
+        break;
+    case 6: // 큐브 앞면 열고 닫기
+        if (keyF == 1)
+        {
+			angleX -= 2.0f;
+			if (angleX <= -90.0f) break;
+        }
+		else if (keyF == 2)
+		{
+			angleX += 2.0f;
+			if (angleX >= 0.0f) break;
+		}
+        glutPostRedisplay();
+        glutTimerFunc(16, timer, 6);
         break;
     }
 }
