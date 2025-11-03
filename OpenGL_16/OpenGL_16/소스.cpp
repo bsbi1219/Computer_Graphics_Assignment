@@ -26,6 +26,7 @@ void timer(int value);
 typedef struct
 {
     float x, y, z;
+    float r, g, b;
 } Vertex;
 typedef struct
 {
@@ -40,8 +41,9 @@ typedef struct
 } Model;
 typedef struct
 {
-    float r, g, b;
-} FaceColor;
+    float x, y, z;
+	float r, g, b;
+} Color;;
 
 void read_newline(char* str)
 {
@@ -119,6 +121,7 @@ bool drawPyramid = false;
 bool keyH = true;
 bool xKey = false;
 bool yKey = false;
+bool uKey = false;
 int dirX = 0; // 0 : 양, 1 : 음
 int dirY = 0; // 0 : 양, 1 : 음
 
@@ -133,9 +136,9 @@ glm::mat4 projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.
 
 glm::mat4 identity = glm::mat4(1.0f);
 
-FaceColor faceColors[12]; // 큐브는 삼각형 12개
-FaceColor pyrFaceColors[6]; // 피라미드는 삼각형 6개
-FaceColor colors[6] = { {1,0,0}, {0,1,0}, {0,0,1}, {1,1,0}, {0,1,1}, {1,0,1} };
+Color Colors[12]; // 큐브는 삼각형 12개
+Color pyrColors[6]; // 피라미드는 삼각형 6개
+Color colors[6] = { {1,0,0}, {0,1,0}, {0,0,1}, {1,1,0}, {0,1,1}, {1,0,1} };
 
 void make_shader()
 {
@@ -175,25 +178,27 @@ void init()
     glBindBuffer(GL_ARRAY_BUFFER, CubeVBO);
     glBufferData(GL_ARRAY_BUFFER, cubeModel.vertex_count * sizeof(Vertex),
         cubeModel.vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
-    glEnableVertexAttribArray(0);
 
     glGenBuffers(1, &CubeEBO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, CubeEBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, cubeModel.face_count * 3 * sizeof(unsigned int), cubeModel.faces, GL_STATIC_DRAW);
 
-    for (int i = 0; i < cubeModel.face_count; ++i)
+    Color* coloredVertices = (Color*)malloc(cubeModel.vertex_count * sizeof(Color));
+    for (size_t i = 0; i < cubeModel.vertex_count; ++i) 
     {
-        faceColors[i].r = (float)(i % 3 == 0);
-        faceColors[i].g = (float)(i % 3 == 1);
-        faceColors[i].b = (float)(i % 3 == 2);
+        coloredVertices[i].x = cubeModel.vertices[i].x;
+        coloredVertices[i].y = cubeModel.vertices[i].y;
+        coloredVertices[i].z = cubeModel.vertices[i].z;
+
+        coloredVertices[i].r = (float)i / cubeModel.vertex_count + 0.3f;
+        coloredVertices[i].g = 1.0f - (float)i / cubeModel.vertex_count + 0.3f;
+        coloredVertices[i].b = (float)(i % 2) + 0.3f;
     }
 
-    for (int i = 0; i < 6; i++)
-    {
-        faceColors[i * 2] = colors[i];
-        faceColors[i * 2 + 1] = colors[i];
-    }
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+    glEnableVertexAttribArray(1);
 
     read_obj_file("pyramid.obj", &PyramidModel);
 
@@ -204,48 +209,41 @@ void init()
     glBindBuffer(GL_ARRAY_BUFFER, PyrVBO);
     glBufferData(GL_ARRAY_BUFFER, PyramidModel.vertex_count * sizeof(Vertex),
         PyramidModel.vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
-    glEnableVertexAttribArray(0);
 
     glGenBuffers(1, &PyrEBO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, PyrEBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, PyramidModel.face_count * 3 * sizeof(unsigned int), PyramidModel.faces, GL_STATIC_DRAW);
 
-    for (int i = 0; i < PyramidModel.face_count; ++i)
+    Color* coloredVertices2 = (Color*)malloc(PyramidModel.vertex_count * sizeof(Color));
+    for (size_t i = 0; i < PyramidModel.vertex_count; ++i)
     {
-        pyrFaceColors[i].r = (float)(i % 3 == 0);
-        pyrFaceColors[i].g = (float)(i % 3 == 1);
-        pyrFaceColors[i].b = (float)(i % 3 == 2);
+        coloredVertices2[i].x = PyramidModel.vertices[i].x;
+        coloredVertices2[i].y = PyramidModel.vertices[i].y;
+        coloredVertices2[i].z = PyramidModel.vertices[i].z;
+
+        coloredVertices2[i].r = (float)i / PyramidModel.vertex_count + 0.6f;
+        coloredVertices2[i].g = 1.0f - (float)i / PyramidModel.vertex_count + 0.6f;
+        coloredVertices2[i].b = (float)(i % 2) + 0.6f;
     }
 
-    for (int i = 0; i < 6; i++)
-    {
-        if (i < 4)
-            pyrFaceColors[i] = colors[i];
-        if (i == 4)
-        {
-            pyrFaceColors[i] = colors[i];
-            pyrFaceColors[i + 1] = colors[i];
-            break;
-        }
-    }
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+    glEnableVertexAttribArray(1);
 
     glEnable(GL_DEPTH_TEST);
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 }
 void makeAxis()
 {
-    GLfloat vertices[] =
+    GLfloat vertices[] = 
     {
-        // X axis (red)
-        -5.0f, 0.0f, 0.0f,
-        5.0f, 0.0f, 0.0f,
-        // Y axis (green)
-        0.0f, -3.0f, 0.0f,
-        0.0f, 3.0f, 0.0f,
-        // Z axis (blue)
-        0.0f, 0.0f, -20.0f,
-        0.0f, 0.0f, 20.0f
+        -5.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+         5.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+         0.0f, -3.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+         0.0f,  3.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+         0.0f, 0.0f, -20.0f, 0.0f, 0.0f, 1.0f,
+         0.0f, 0.0f,  20.0f, 0.0f, 0.0f, 1.0f
     };
 
     glGenVertexArrays(1, &AxisVAO);
@@ -253,8 +251,10 @@ void makeAxis()
     glGenBuffers(1, &AxisVBO);
     glBindBuffer(GL_ARRAY_BUFFER, AxisVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
 }
 
 void display()
@@ -268,6 +268,11 @@ void display()
         glEnable(GL_DEPTH_TEST);
 	else
         glDisable(GL_DEPTH_TEST);
+
+	if (uKey)
+		glEnable(GL_CULL_FACE);
+	else
+		glDisable(GL_CULL_FACE);
 
     GLint modelLoc = glGetUniformLocation(shaderProgram, "model");
     GLint viewLoc = glGetUniformLocation(shaderProgram, "view");
@@ -287,7 +292,7 @@ void display()
         if (drawCube)
         {
             glUniform3f(glGetUniformLocation(shaderProgram, "u_color"),
-                faceColors[i * 2].r, faceColors[i * 2].g, faceColors[i * 2].b);
+                Colors[i * 2].r, Colors[i * 2].g, Colors[i * 2].b);
 
             glDrawElements(GL_TRIANGLES, 3 * 2, GL_UNSIGNED_INT, (void*)(i * 2 * 3 * sizeof(unsigned int)));
         }
@@ -299,7 +304,7 @@ void display()
         if (drawPyramid)
         {
             glUniform3f(glGetUniformLocation(shaderProgram, "u_color"),
-                pyrFaceColors[i].r, pyrFaceColors[i].g, pyrFaceColors[i].b);
+                pyrColors[i].r, pyrColors[i].g, pyrColors[i].b);
             glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, (void*)(i * 3 * sizeof(unsigned int)));
         }
     }
@@ -309,13 +314,10 @@ void display()
 
     glBindVertexArray(AxisVAO);
     // X axis (red)
-    glUniform3f(glGetUniformLocation(shaderProgram, "u_color"), 1.0f, 0.0f, 0.0f);
     glDrawArrays(GL_LINES, 0, 2);
     // Y axis (green)
-    glUniform3f(glGetUniformLocation(shaderProgram, "u_color"), 0.0f, 1.0f, 0.0f);
     glDrawArrays(GL_LINES, 2, 2);
     // Z axis (blue)
-    glUniform3f(glGetUniformLocation(shaderProgram, "u_color"), 0.0f, 0.0f, 1.0f);
     glDrawArrays(GL_LINES, 4, 2);
 
     glutSwapBuffers();
@@ -393,6 +395,9 @@ void Keyboard(unsigned char key, int x, int y)
     case 's':
         reset();
         break;
+    case 'u':
+		uKey = !uKey;
+		break;
     case 'q':
         exit(0);
     }
