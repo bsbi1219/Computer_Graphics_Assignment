@@ -11,7 +11,7 @@
 #include <gl/glm/glm.hpp>
 #include <gl/glm/gtc/matrix_transform.hpp>
 #include <gl/glm/gtc/type_ptr.hpp>
-#define MAX_LINE_LENGTH 256
+#define MAX_LINE_LENGTH 4096
 
 using namespace std;
 
@@ -127,8 +127,16 @@ public:
 	~PYRAMID() { }
 };
 
+class SPHERE : public OBJSHAPE
+{  
+public:
+    SPHERE() { }
+    ~SPHERE() { }
+};
+
 CUBE cube;
 PYRAMID pyramid;
+SPHERE sphere;
 GLuint AxisVAO, AxisVBO;
 
 void read_newline(char* str)
@@ -171,11 +179,17 @@ void read_obj_file(const char* filename, OBJSHAPE* model)
         }
         else if (line[0] == 'f' && line[1] == ' ')
         {
-            unsigned int v1, v2, v3;
-            sscanf_s(line + 2, "%u %u %u", &v1, &v2, &v3);
-            model->faces[f_idx].v1 = v1 - 1;
-            model->faces[f_idx].v2 = v2 - 1;
-            model->faces[f_idx].v3 = v3 - 1;
+            unsigned int v[3];
+            char* ptr = line + 2;
+            for (int i = 0; i < 3; ++i) {
+                v[i] = atoi(ptr) - 1;
+                ptr = strchr(ptr, ' ');
+                if (!ptr) break;
+                ptr++;
+            }
+            model->faces[f_idx].v1 = v[0];
+            model->faces[f_idx].v2 = v[1];
+            model->faces[f_idx].v3 = v[2];
             f_idx++;
         }
     }
@@ -274,12 +288,12 @@ void display()
     glBindVertexArray(cube.VAO);
     glDrawElements(GL_TRIANGLES, cube.face_count * 3, GL_UNSIGNED_INT, 0);
 
-    // 피라미드 그리기
-    glm::mat4 modelPyramid = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelPyramid));
+    // 구 그리기
+    glm::mat4 modelSphere = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelSphere));
 
-    glBindVertexArray(pyramid.VAO);
-    glDrawElements(GL_TRIANGLES, pyramid.face_count * 3, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(sphere.VAO);
+    glDrawElements(GL_TRIANGLES, sphere.face_count * 3, GL_UNSIGNED_INT, 0);
 
     // 축
     glm::mat4 modelAxis = glm::mat4(1.0f);
@@ -330,6 +344,7 @@ int main(int argc, char** argv)
 
     cube.init("cube.obj");
     pyramid.init("pyramid.obj");
+	sphere.init("sphere.obj");
 
     glutDisplayFunc(display);
     glutReshapeFunc(reshape);
