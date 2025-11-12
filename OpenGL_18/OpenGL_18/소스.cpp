@@ -134,9 +134,17 @@ public:
     ~SPHERE() { }
 };
 
+class CYLINDER : public OBJSHAPE
+{
+public:
+    CYLINDER() { }
+    ~CYLINDER() { }
+};
+
 CUBE cube;
 PYRAMID pyramid;
 SPHERE sphere;
+CYLINDER cylinder;
 GLuint AxisVAO, AxisVBO;
 
 void read_newline(char* str)
@@ -289,11 +297,18 @@ void display()
     glDrawElements(GL_TRIANGLES, cube.face_count * 3, GL_UNSIGNED_INT, 0);
 
     // 구 그리기
-    glm::mat4 modelSphere = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    glm::mat4 modelSphere = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, -3.0f, 0.0f));
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelSphere));
 
     glBindVertexArray(sphere.VAO);
     glDrawElements(GL_TRIANGLES, sphere.face_count * 3, GL_UNSIGNED_INT, 0);
+
+    // 실린더 그리기
+    glm::mat4 modelCylinder = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelCylinder));
+
+    glBindVertexArray(cylinder.VAO);
+    glDrawElements(GL_TRIANGLES, cylinder.face_count * 3, GL_UNSIGNED_INT, 0);
 
     // 축
     glm::mat4 modelAxis = glm::mat4(1.0f);
@@ -308,6 +323,30 @@ void Keyboard(unsigned char key, int x, int y)
 {
     switch (key)
     {
+    case 'x': case 'X':
+        break;
+    case 'y': case 'Y':
+		break;
+    case 'r': case 'R':
+		break;
+    case 'a': case 'A':
+		break;
+	case 'b': case 'B': 
+		break;
+    case 'd': case 'D':
+		break;
+	case 'e': case 'E':
+		break;
+    case 't':
+        break;
+    case 'u':
+        break;
+    case 'v':
+        break;
+    case 'c':
+        break;
+    case 's':
+        break;
     case 'q':
         exit(0);
     }
@@ -345,6 +384,7 @@ int main(int argc, char** argv)
     cube.init("cube.obj");
     pyramid.init("pyramid.obj");
 	sphere.init("sphere.obj");
+	cylinder.init("cylinder.obj");
 
     glutDisplayFunc(display);
     glutReshapeFunc(reshape);
