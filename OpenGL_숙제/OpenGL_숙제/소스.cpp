@@ -17,6 +17,8 @@ using namespace std;
 
 random_device rd;
 uniform_int_distribution<int> randFace(0, 5);
+uniform_real_distribution<float> ranHeight(1.0f, 6.0f);
+uniform_real_distribution<float> ranSpeed(0.3f, 2.0f);
 
 struct OBJSHAPE;
 void read_obj_file(const char* filename, OBJSHAPE* model);
@@ -24,19 +26,25 @@ void read_newline(char* str);
 void make_shader();
 void Keyboard(unsigned char key, int x, int y);
 void init();
-void makeAxis();
 void timer(int value);
+void consoleOrder();
 
-typedef struct
-{
+string order{};
+stringstream ss{};
+int weight{};
+int height{};
+float wSpace{}, hSpace{};
+int cubeCnt{};
+
+bool proj = true;
+
+typedef struct {
     float x, y, z;
 } Vertex;
-typedef struct
-{
+typedef struct {
     unsigned int v1, v2, v3;
 } Face;
-typedef struct
-{
+typedef struct {
     float x, y, z;
     float r, g, b;
 } Color;
@@ -73,9 +81,9 @@ public:
             colored[i].x = vertices[i].x;
             colored[i].y = vertices[i].y;
             colored[i].z = vertices[i].z;
-            colored[i].r = (float)i / vertex_count + 0.1f;
-            colored[i].g = 1.0f - (float)i / vertex_count + 0.1f;
-            colored[i].b = (float)(i % 2) * 0.5f + 0.1f;
+            colored[i].r = 1.0f;
+            colored[i].g = 0.5f;
+            colored[i].b = 0.6f;
         }
 
         // VAO VBO EBO 생성
@@ -116,6 +124,7 @@ public:
 class CUBE : public OBJSHAPE
 {
 public:
+    float height = ranHeight(rd);
     CUBE() {}
     ~CUBE() {}
 };
@@ -134,10 +143,49 @@ public:
     ~SPHERE() {}
 };
 
-CUBE cube;
-PYRAMID pyramid;
-SPHERE sphere;
-GLuint AxisVAO, AxisVBO;
+class FLOOR {
+public:
+    void makeFloor() {
+        GLfloat vertices[] = {
+            -5.0f, 0.0f, -5.0f,  0.7f, 0.5f, 0.6f,
+             5.0f, 0.0f, -5.0f,  0.7f, 0.5f, 0.6f,
+             5.0f, 0.0f,  5.0f,  0.7f, 0.5f, 0.6f,
+            -5.0f, 0.0f,  5.0f,  0.7f, 0.5f, 0.6f,
+        };
+
+        GLuint indices[] = {
+            0, 1, 2,
+            2, 3, 0
+        };
+
+        glGenVertexArrays(1, &VAO);
+        glBindVertexArray(VAO);
+
+        glGenBuffers(1, &VBO);
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+        glGenBuffers(1, &EBO);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
+
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(1);
+    }
+    void drawFloor() {
+        glBindVertexArray(VAO);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    }
+private:
+    GLuint VAO, VBO, EBO;
+};
+
+vector<CUBE> cube;
+FLOOR Floor;
+GLuint floorVAO, floorVBO;
 
 void read_newline(char* str)
 {
@@ -211,8 +259,8 @@ char* filetobuf(const char* file)
 
 GLuint shaderProgram;
 
-glm::mat4 view = glm::lookAt(glm::vec3(-2.0f, 2.0f, 3.0f), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-glm::mat4 projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 10.0f);
+glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 15.0f, 20.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+glm::mat4 projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 50.0f);
 glm::mat4 model = glm::mat4(1.0f);
 glm::mat4 identity = glm::mat4(1.0f);
 
@@ -244,35 +292,47 @@ void make_shader()
 void init()
 {
     glEnable(GL_DEPTH_TEST);
-    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 }
-void makeAxis()
-{
-    GLfloat vertices[] =
-    {
-        -5.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-         5.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-         0.0f, -3.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-         0.0f,  3.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-         0.0f, 0.0f, -20.0f, 0.0f, 0.0f, 1.0f,
-         0.0f, 0.0f,  20.0f, 0.0f, 0.0f, 1.0f
-    };
-
-    glGenVertexArrays(1, &AxisVAO);
-    glBindVertexArray(AxisVAO);
-    glGenBuffers(1, &AxisVBO);
-    glBindBuffer(GL_ARRAY_BUFFER, AxisVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-}
+//void makeAxis()
+//{
+//    GLfloat vertices[] =
+//    {
+//        -5.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+//         5.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+//         0.0f, -3.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+//         0.0f,  3.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+//         0.0f, 0.0f, -20.0f, 0.0f, 0.0f, 1.0f,
+//         0.0f, 0.0f,  20.0f, 0.0f, 0.0f, 1.0f
+//    };
+//
+//    glGenVertexArrays(1, &AxisVAO);
+//    glBindVertexArray(AxisVAO);
+//    glGenBuffers(1, &AxisVBO);
+//    glBindBuffer(GL_ARRAY_BUFFER, AxisVBO);
+//    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+//    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+//    glEnableVertexAttribArray(0);
+//    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+//    glEnableVertexAttribArray(1);
+//}
 
 void display()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glUseProgram(shaderProgram);
+
+    if (proj) 
+    {
+        view = glm::lookAt(glm::vec3(0.0f, 15.0f, 20.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 50.0f);
+    }
+    else {
+        float planeHalf = 5.0f;
+        float aspect = 800.0f / 600.0f;
+        projection = glm::ortho(-planeHalf * aspect, planeHalf * aspect, -planeHalf, planeHalf, 0.1f, 50.0f);
+        view = glm::lookAt(glm::vec3(0.0f, 15.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f));
+    }
 
     // view, projection, model 행렬 전달
     GLint modelLoc = glGetUniformLocation(shaderProgram, "model");
@@ -281,25 +341,28 @@ void display()
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
+    glm::mat4 modelFloor = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelFloor));
+    Floor.drawFloor();
+
     // 큐브 그리기
-    glm::mat4 modelCube = glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 0.0f));
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelCube));
-
-    glBindVertexArray(cube.VAO);
-    glDrawElements(GL_TRIANGLES, cube.face_count * 3, GL_UNSIGNED_INT, 0);
-
-    // 구 그리기
-    glm::mat4 modelSphere = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelSphere));
-
-    glBindVertexArray(sphere.VAO);
-    glDrawElements(GL_TRIANGLES, sphere.face_count * 3, GL_UNSIGNED_INT, 0);
-
-    // 축
-    glm::mat4 modelAxis = glm::mat4(1.0f);
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelAxis));
-    glBindVertexArray(AxisVAO);
-    glDrawArrays(GL_LINES, 0, 6);
+    int i = 0, j = 0;
+    float xCenter = -5.0f + (wSpace * 0.5f);
+    float yCenter = -5.0f + (hSpace * 0.5f);
+    float zCenter{};
+    for (auto& c : cube) {
+        zCenter = (c.height * 0.5f);
+        glm::mat4 modelCube = glm::translate(glm::mat4(1.0f), glm::vec3(xCenter + j * wSpace, zCenter, yCenter + i * hSpace))
+        *glm::scale(glm::mat4(1.0f), glm::vec3(wSpace, c.height, hSpace));
+        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelCube));
+        glBindVertexArray(c.VAO);
+        glDrawElements(GL_TRIANGLES, c.face_count * 3, GL_UNSIGNED_INT, 0);
+        i++;
+        if (i == weight) {
+            i = 0;
+            j++;
+        }
+    }
 
     glutSwapBuffers();
 }
@@ -308,29 +371,31 @@ void Keyboard(unsigned char key, int x, int y)
 {
     switch (key)
     {
-    case 'x': case 'X':
+    case 'o':
+        proj = true;
+        break;
+    case 'p':
+        proj = false;
+        break;
+    case 'z': case 'Z':
+        break;
+    case 'm': case 'M':
         break;
     case 'y': case 'Y':
         break;
-    case 'r': case 'R':
-        break;
-    case 'a': case 'A':
-        break;
-    case 'b': case 'B':
-        break;
-    case 'd': case 'D':
-        break;
-    case 'e': case 'E':
-        break;
-    case 't':
-        break;
-    case 'u':
+    case 'r':
         break;
     case 'v':
         break;
-    case 'c':
-        break;
     case 's':
+        break;
+    case '+':
+        break;
+    case '-':
+        break;
+    case '1': case '3':
+        break;
+    case 'c':
         break;
     case 'q':
         exit(0);
@@ -338,22 +403,38 @@ void Keyboard(unsigned char key, int x, int y)
     glutPostRedisplay();
 }
 
-void timer(int value)
-{
-    switch (value)
-    {
+void timer(int value) {
+    switch (value) {
     case 1:
+        for (auto& c : cube) {
+
+        }
         break;
     }
 }
 
-void reshape(int w, int h)
-{
+void reshape(int w, int h) {
     glViewport(0, 0, w, h);
 }
 
-int main(int argc, char** argv)
-{
+void consoleOrder() {
+    cout << "가로 길이와 세로 길이를 입력해주세요. q: 프로그램 종료" << '\n' << "* 길이 제한 : 5 ~ 25 * (벗어난다면 자동으로 최대 최소로 설정)" << '\n';
+    cout << "입력 : ";
+    getline(cin, order);
+    if (order[0] == 'q') exit(0);
+    ss.clear();
+    ss.str(order);
+    ss >> weight >> height;
+    if (weight < 5) weight = 5;
+    if (height < 5) height = 5;
+    if (weight > 25) weight = 25;
+    if (height > 25) height = 25;
+    cout << weight << " " << height << endl;
+    wSpace = 10.0f / weight;
+    hSpace = 10.0f / height;
+}
+
+int main(int argc, char** argv) {
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH);
     glutInitWindowSize(800, 600);
@@ -364,16 +445,20 @@ int main(int argc, char** argv)
     make_shader();
 
     init();
-    makeAxis();
 
-    cube.init("cube.obj");
-    pyramid.init("pyramid.obj");
-    sphere.init("sphere.obj");
+    consoleOrder();
+    cubeCnt = weight * height;
+    cube.resize(cubeCnt);
+
+    for (auto& c : cube) {
+        c.init("cube.obj");
+    }
+    Floor.makeFloor();
 
     glutDisplayFunc(display);
     glutReshapeFunc(reshape);
     glutKeyboardFunc(Keyboard);
-
+    
     glutMainLoop();
     return 0;
 }
