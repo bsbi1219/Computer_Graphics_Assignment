@@ -35,6 +35,7 @@ int weight{};
 int height{};
 float wSpace{}, hSpace{};
 int cubeCnt{};
+float zPos = 20.0f;
 
 bool proj = true;
 
@@ -259,7 +260,7 @@ char* filetobuf(const char* file)
 
 GLuint shaderProgram;
 
-glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 15.0f, 20.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 15.0f, zPos), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 glm::mat4 projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 50.0f);
 glm::mat4 model = glm::mat4(1.0f);
 glm::mat4 identity = glm::mat4(1.0f);
@@ -324,7 +325,7 @@ void display()
 
     if (proj) 
     {
-        view = glm::lookAt(glm::vec3(0.0f, 15.0f, 20.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        view = glm::lookAt(glm::vec3(0.0f, 15.0f, zPos), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 50.0f);
     }
     else {
@@ -357,10 +358,10 @@ void display()
         glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelCube));
         glBindVertexArray(c.VAO);
         glDrawElements(GL_TRIANGLES, c.face_count * 3, GL_UNSIGNED_INT, 0);
-        i++;
-        if (i == weight) {
-            i = 0;
-            j++;
+        j++;
+        if (j == weight) {
+            j = 0;
+            i++;
         }
     }
 
@@ -369,15 +370,18 @@ void display()
 
 void Keyboard(unsigned char key, int x, int y)
 {
-    switch (key)
-    {
+    switch (key){
     case 'o':
-        proj = true;
-        break;
-    case 'p':
         proj = false;
         break;
-    case 'z': case 'Z':
+    case 'p':
+        proj = true;
+        break;
+    case 'z': 
+        if (proj) zPos += 0.1f;
+        break;
+    case 'Z':
+        if (proj) zPos -= 0.1f;
         break;
     case 'm': case 'M':
         break;
