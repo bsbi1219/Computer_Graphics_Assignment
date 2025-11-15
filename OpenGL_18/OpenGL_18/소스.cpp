@@ -297,18 +297,18 @@ void display()
     glDrawElements(GL_TRIANGLES, cube.face_count * 3, GL_UNSIGNED_INT, 0);
 
     // 구 그리기
-    glm::mat4 modelSphere = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, -3.0f, 0.0f));
+    glm::mat4 modelSphere = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelSphere));
 
     glBindVertexArray(sphere.VAO);
     glDrawElements(GL_TRIANGLES, sphere.face_count * 3, GL_UNSIGNED_INT, 0);
 
-    // 실린더 그리기
-    glm::mat4 modelCylinder = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelCylinder));
+    //// 실린더 그리기
+    //glm::mat4 modelCylinder = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    //glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelCylinder));
 
-    glBindVertexArray(cylinder.VAO);
-    glDrawElements(GL_TRIANGLES, cylinder.face_count * 3, GL_UNSIGNED_INT, 0);
+    //glBindVertexArray(cylinder.VAO);
+    //glDrawElements(GL_TRIANGLES, cylinder.face_count * 3, GL_UNSIGNED_INT, 0);
 
     // 축
     glm::mat4 modelAxis = glm::mat4(1.0f);
