@@ -11,6 +11,8 @@ random_device rd;
 uniform_int_distribution<int> ran(1, 2);
 uniform_int_distribution<int> ranstatus(5, 30);
 
+class Item;
+
 class Object {
 protected:
 	int hp;
@@ -19,11 +21,20 @@ public:
 		hp = hp - atk;
 	}
 
-	bool died() {
+	bool died() const {
 		return hp > 0 ? false : true;
 	}
 
-	virtual void printInfo() = 0;
+	virtual void printInfo(ostream& os) const = 0;
+
+	friend ostream& operator<<(ostream& os, const Object& o) {
+		o.printInfo(os);
+		return os;
+	}
+
+	explicit operator bool() const {
+		return !died();
+	}
 };
 
 class Monster : public Object {
@@ -40,12 +51,12 @@ public:
 		o->hit(atk);
 	}
 
-	virtual void printInfo() override {
-		cout << num << "번 몬스터" << endl;
-		cout << "체력 : " << hp << endl;
-		cout << "공격력 : " << atk << endl;
-		cout << "방어력 : " << def << endl;
-		cout << endl;
+	virtual void printInfo(ostream& os) const override {
+		os << num << "번 몬스터" << endl;
+		os << "체력 : " << hp << endl;
+		os << "공격력 : " << atk << endl;
+		os << "방어력 : " << def << endl;
+		os << endl;
 	}
 };
 
@@ -57,7 +68,7 @@ private:
 	int exp;
 	int level;
 public:
-	Player(string tid) : id{ tid }, atk{ 20 }, def{ 10 }, exp{ 0.0f }, level{ 1 } {
+	Player(string tid) : id{ tid }, atk{ 20 }, def{ 10 }, exp{ 0 }, level{ 1 } {
 		hp = 200; 
 	};
 	
@@ -66,17 +77,23 @@ public:
 	}
 
 	void checkLevel() {
-		if (exp % 10 == 0) level++;
+		if (exp > 0 && exp % 20 == 0) level++;
 	}
 
-	virtual void printInfo() override {
-		cout << "*** " << id << " ***" << endl;
-		cout << "레벨 : " << level << endl;
-		cout << "체력 : " << hp << endl;
-		cout << "공격력 : " << atk << endl;
-		cout << "방어력 : " << def << endl;
-		cout << "경험치 : " << exp << endl;
-		cout << endl;
+	Player& operator+=(int gainedExp) {
+		exp += gainedExp;
+		checkLevel();
+		return *this;
+	}
+
+	virtual void printInfo(ostream& os) const override {
+		os << "*** " << id << " ***" << endl;
+		os << "레벨 : " << level << endl;
+		os << "체력 : " << hp << endl;
+		os << "공격력 : " << atk << endl;
+		os << "방어력 : " << def << endl;
+		os << "경험치 : " << exp << endl;
+		os << endl;
 	}
 };
 
@@ -86,9 +103,9 @@ private:
 public:
 	Npc() { hp = 100; };
 
-	virtual void printInfo() override {
-		cout << "Npc 체력 : " << hp << endl;
-		cout << endl;
+	virtual void printInfo(ostream& os) const override {
+		os << "Npc 체력 : " << hp << endl;
+		os << endl;
 	}
 };
 
@@ -107,11 +124,13 @@ int main() {
 
 	while (1) {
 		system("cls");
-		p.printInfo();
+		cout << p << endl;
+		cout << m[0] << endl;
 
 		cout << "1. 상점" << endl;
 		cout << "2. 싸우러 가자" << endl;
 		cout << "3. 인벤토리" << endl;
+		if (p) cout << "아직 살아있음" << endl;
 		cout << "명령어 : ";
 		cin >> order;
 
